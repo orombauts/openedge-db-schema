@@ -3,6 +3,11 @@
   "displayName": "OpenEdge DB Schema",
   "description": "View and explore OpenEdge database schema",
   "version": "1.0.0",
+  "publisher": "csysolivierrombauts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/orombauts/openedge-db-schema.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
