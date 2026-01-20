@@ -2,6 +2,14 @@
 
 A VS Code extension to visualize and explore OpenEdge database schema in an interactive tree view with advanced search and copy features.
 
+## Requirements
+
+This extension requires the **OpenEdge ABL** extension to be installed and configured. The OpenEdge ABL extension provides the database schema information that this extension visualizes.
+
+You can find the OpenEdge ABL extension in the VS Code Marketplace:
+- Search for "OpenEdge ABL" in the Extensions view (Ctrl+Shift+X)
+- Or visit: [OpenEdge ABL Extension](https://marketplace.visualstudio.com/items?itemName=chriscamicas.openedge-abl)
+
 ## Features
 
 - Retrieve schema information from the OpenEdge ABL extension
