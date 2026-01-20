@@ -2,7 +2,7 @@
   "name": "openedge-db-schema",
   "displayName": "OpenEdge DB Schema",
   "description": "View and explore OpenEdge database schema",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "engines": {
     "vscode": "^1.85.0"
   },
