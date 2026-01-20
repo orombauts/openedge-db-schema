@@ -1,0 +1,75 @@
+{
+  "name": "openedge-db-schema",
+  "displayName": "OpenEdge DB Schema",
+  "description": "View and explore OpenEdge database schema",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:abl"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "openedge-db-schema.getSchema",
+        "title": "Get OpenEdge DB Schema"
+      },
+      {
+        "command": "openedge-db-schema.refreshSchema",
+        "title": "Refresh Schema",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "openedge-db-schema.dumpSchema",
+        "title": "Dump Schema to File",
+        "icon": "$(save)"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "type": "webview",
+          "id": "openedge-db-schema.schemaView",
+          "name": "OpenEdge DB Schema",
+          "icon": "$(database)",
+          "contextualTitle": "OpenEdge DB Schema"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "openedge-db-schema.refreshSchema",
+          "when": "view == openedge-db-schema.schemaView",
+          "group": "navigation"
+        },
+        {
+          "command": "openedge-db-schema.dumpSchema",
+          "when": "view == openedge-db-schema.schemaView",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "20.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.2",
+    "@typescript-eslint/parser": "^8.18.2",
+    "@vscode/codicons": "^0.0.44",
+    "eslint": "^9.18.0",
+    "typescript": "^5.7.3"
+  }
+}

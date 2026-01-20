@@ -1,0 +1,61 @@
+# OpenEdge DB Schema
+
+A VS Code extension to visualize and explore OpenEdge database schema in an interactive tree view with advanced search and copy features.
+
+## Features
+
+- Retrieve schema information from the OpenEdge ABL extension
+- View database schema in an interactive tree with collapsible nodes
+- **Embedded search box** with case-sensitive and wildcard options
+- Browse databases, tables, fields, and indexes hierarchically
+- View detailed field information (extent, label, format, initial value)
+- **Right-click copy**: Copy database or table definitions as JSON to clipboard
+- Automatic tree expansion when searching
+- Loading indicator for schema refresh operations
+- Save schema to `.openedge-db-schema/schema.json` in the workspace
+
+## Usage
+
+### Get Schema
+
+1. Open Command Palette (Ctrl+Shift+P)
+2. Run: `Get OpenEdge DB Schema`
+3. The schema will be loaded into the interactive view
+
+### Schema View
+
+The **OpenEdge DB Schema** view appears in the Explorer sidebar and shows:
+- **Databases**: Top-level database containers (hover for table count)
+- **Tables**: Expandable table nodes (hover for field and index counts)
+- **Fields**: Individual field nodes with data type and extent
+  - Expand fields to see additional details: label, column label, format, initial value
+- **Indexes**: Index definitions with primary/unique indicators
+  - Expand indexes to see segment fields and their positions
+
+### Search Features
+
+The view includes a persistent search box at the top with:
+- **Search input**: Type to filter databases, tables, fields, and indexes in real-time
+- **Search/Clear buttons**: Apply or clear the current filter
+- **Case-sensitive toggle**: Match exact case in search
+- **Wildcard toggle**: Enable wildcard patterns (* = any characters, ? = single character)
+- **Auto-expand**: Search results automatically expand to show matching items
+
+### Copy to Clipboard
+
+Right-click on **database** or **table** nodes to access the context menu:
+- **Copy**: Copies the node and all its children as JSON
+- JSON structure matches the OpenEdge ABL extension schema format
+- Perfect for sharing schema definitions or creating test data
+
+### Toolbar Buttons
+
+- **Refresh**: Reload the schema from the OpenEdge ABL extension
+- **Dump**: Save the current schema to a JSON file and open it
+
+## Development
+
+1. Install dependencies: `npm install`
+2. Compile: `npm run compile`
+3. Press F5 to launch extension in debug mode
+4. In the launch.json, specify a test workspace path if needed

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline'; font-src {{cspSource}}; script-src 'nonce-{{nonce}}';">
+    <link rel="stylesheet" href="{{codiconUri}}">
+    <title>OpenEdge ABL Schema</title>
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+            font-family: var(--vscode-font-family);
+            font-size: var(--vscode-font-size);
+            color: var(--vscode-foreground);
+        }
+        
+        .search-container {
+            padding: 8px;
+            background: var(--vscode-sideBar-background);
+            border-bottom: 1px solid var(--vscode-panel-border);
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            padding: 4px 8px;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            outline: none;
+        }
+        
+        input[type="text"]:focus {
+            border-color: var(--vscode-focusBorder);
+        }
+        
+        button {
+            padding: 4px 8px;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        button:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .options {
+            display: flex;
+            gap: 4px;
+            font-size: 12px;
+        }
+        
+        .toggle-btn {
+            padding: 4px 8px;
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border: 1px solid var(--vscode-button-border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .toggle-btn:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+        
+        .toggle-btn.active {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border-color: var(--vscode-focusBorder);
+        }
+        
+        .tree-container {
+            padding: 8px;
+            overflow: auto;
+        }
+        
+        .tree-item {
+            padding: 2px 0;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .tree-item:hover {
+            background: var(--vscode-list-hoverBackground);
+        }
+        
+        .tree-item-content {
+            display: flex;
+            align-items: center;
+            padding: 2px 4px;
+        }
+        
+        .tree-item.selected {
+            background: var(--vscode-list-activeSelectionBackground);
+            color: var(--vscode-list-activeSelectionForeground);
+        }
+        
+        .expand-icon {
+            width: 16px;
+            height: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 2px;
+        }
+        
+        .icon {
+            margin: 0 4px;
+            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .label {
+            flex: 1;
+        }
+        
+        .description {
+            color: var(--vscode-descriptionForeground);
+            margin-left: 8px;
+            font-size: 0.9em;
+        }
+        
+        .children {
+            margin-left: 16px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .no-data {
+            padding: 16px;
+            text-align: center;
+            color: var(--vscode-descriptionForeground);
+        }
+        
+        .loading {
+            padding: 16px;
+            text-align: center;
+            color: var(--vscode-descriptionForeground);
+        }
+        
+        .loading::before {
+            content: "";
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--vscode-descriptionForeground);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .context-menu {
+            position: fixed;
+            background: var(--vscode-menu-background);
+            border: 1px solid var(--vscode-menu-border);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            min-width: 150px;
+        }
+        
+        .context-menu-item {
+            padding: 4px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .context-menu-item:hover {
+            background: var(--vscode-menu-selectionBackground);
+            color: var(--vscode-menu-selectionForeground);
+        }
+    </style>
+</head>
+<body>
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search schema...">
+            <button id="searchBtn" title="Search" class="codicon codicon-search"></button>
+            <button id="clearBtn" title="Clear search" class="codicon codicon-close"></button>
+        </div>
+        <div class="options">
+            <button id="caseSensitiveBtn" class="toggle-btn codicon codicon-case-sensitive" title="Case-sensitive search"></button>
+            <button id="useWildcardBtn" class="toggle-btn codicon codicon-regex" title="Wildcard search (* and ?)"></button>
+        </div>
+    </div>
+    <div class="tree-container" id="treeContainer">
+        <div class="no-data">No schema data loaded. Click refresh to load schema.</div>
+    </div>
+    
+    <script nonce="{{nonce}}">
+        const vscode = acquireVsCodeApi();
+        let schemaData = null;
+        let searchPattern = '';
+        let caseSensitive = false;
+        let useWildcard = false;
+        let contextMenu = null;
+        let contextMenuTarget = null;
+
+        // Listen for messages from extension
+        window.addEventListener('message', event => {
+            const message = event.data;
+            switch (message.type) {
+                case 'loading':
+                    showLoading();
+                    break;
+                case 'schemaData':
+                    schemaData = message.data;
+                    renderTree();
+                    break;
+            }
+        });
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            searchPattern = e.target.value;
+            renderTree();
+        });
+
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            searchPattern = document.getElementById('searchInput').value;
+            renderTree();
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            document.getElementById('searchInput').value = '';
+            searchPattern = '';
+            renderTree();
+        });
+
+        document.getElementById('caseSensitiveBtn').addEventListener('click', (e) => {
+            caseSensitive = !caseSensitive;
+            e.target.classList.toggle('active', caseSensitive);
+            renderTree();
+        });
+
+        document.getElementById('useWildcardBtn').addEventListener('click', (e) => {
+            useWildcard = !useWildcard;
+            e.target.classList.toggle('active', useWildcard);
+            renderTree();
+        });
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchPattern = e.target.value;
+                renderTree();
+            }
+        });
+
+        // Context menu handling
+        document.addEventListener('contextmenu', (e) => {
+            // Find if click was on a tree item
+            let target = e.target;
+            while (target && !target.classList.contains('tree-item')) {
+                target = target.parentElement;
+            }
+            
+            // Show context menu for database or table nodes
+            if (target && target.classList.contains('tree-item')) {
+                const content = target.querySelector('.tree-item-content');
+                const hasTableIcon = content && content.querySelector('.codicon-table');
+                const hasDatabaseIcon = content && content.querySelector('.codicon-database');
+                
+                if (hasTableIcon || hasDatabaseIcon) {
+                    e.preventDefault();
+                    contextMenuTarget = target;
+                    showContextMenu(e.pageX, e.pageY);
+                }
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (contextMenu && !contextMenu.contains(e.target)) {
+                hideContextMenu();
+            }
+        });
+
+        function showContextMenu(x, y) {
+            hideContextMenu();
+            
+            contextMenu = document.createElement('div');
+            contextMenu.className = 'context-menu';
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+            
+            const copyItem = document.createElement('div');
+            copyItem.className = 'context-menu-item';
+            copyItem.innerHTML = '<span class="codicon codicon-copy"></span>Copy';
+            copyItem.addEventListener('click', () => {
+                copyNodeToClipboard(contextMenuTarget);
+                hideContextMenu();
+            });
+            
+            contextMenu.appendChild(copyItem);
+            document.body.appendChild(contextMenu);
+        }
+
+        function hideContextMenu() {
+            if (contextMenu) {
+                contextMenu.remove();
+                contextMenu = null;
+                contextMenuTarget = null;
+            }
+        }
+
+        function copyNodeToClipboard(node) {
+            const content = node.querySelector('.tree-item-content');
+            const label = content.querySelector('.label');
+            const nodeName = label ? label.textContent : '';
+            
+            const hasTableIcon = content && content.querySelector('.codicon-table');
+            const hasDatabaseIcon = content && content.querySelector('.codicon-database');
+            
+            if (hasDatabaseIcon) {
+                // Copy database
+                vscode.postMessage({
+                    type: 'copyNode',
+                    nodeType: 'database',
+                    databaseName: nodeName
+                });
+            } else if (hasTableIcon) {
+                // Copy table - need to find parent database
+                let dbNode = node.parentElement;
+                while (dbNode && !dbNode.classList.contains('tree-item')) {
+                    dbNode = dbNode.parentElement;
+                }
+                
+                if (dbNode) {
+                    const dbContent = dbNode.querySelector('.tree-item-content');
+                    const dbLabel = dbContent.querySelector('.label');
+                    const databaseName = dbLabel ? dbLabel.textContent : '';
+                    
+                    vscode.postMessage({
+                        type: 'copyNode',
+                        nodeType: 'table',
+                        databaseName: databaseName,
+                        tableName: nodeName
+                    });
+                }
+            }
+        }
+
+        function getNodeText(node, indent) {
+            let text = '';
+            const indentStr = '  '.repeat(indent);
+            
+            const content = node.querySelector('.tree-item-content');
+            if (content) {
+                const label = content.querySelector('.label');
+                const description = content.querySelector('.description');
+                
+                text = indentStr + (label ? label.textContent : '');
+                if (description && description.textContent) {
+                    text += ' - ' + description.textContent;
+                }
+                text += '\n';
+            }
+            
+            // Add all children (regardless of whether they're hidden or not)
+            const childrenDiv = node.querySelector(':scope > .children');
+            if (childrenDiv) {
+                const childItems = childrenDiv.querySelectorAll(':scope > .tree-item');
+                childItems.forEach(child => {
+                    text += getNodeText(child, indent + 1);
+                });
+            }
+            
+            return text;
+        }
+
+        function matchesSearch(text) {
+            if (!searchPattern) return true;
+            
+            let pattern = searchPattern;
+            let target = text;
+            
+            if (!caseSensitive) {
+                pattern = pattern.toLowerCase();
+                target = target.toLowerCase();
+            }
+            
+            if (useWildcard) {
+                // Escape special regex characters except * and ?
+                let regexPattern = pattern;
+                const specialChars = ['.', '+', '^', '$', '{', '}', '(', ')', '|', '[', ']', '\\'];
+                specialChars.forEach(char => {
+                    regexPattern = regexPattern.split(char).join('\\' + char);
+                });
+                regexPattern = regexPattern.replace(/\*/g, '.*').replace(/\?/g, '.');
+                const regex = new RegExp('^' + regexPattern + '$', caseSensitive ? '' : 'i');
+                return regex.test(target);
+            }
+            
+            return target.includes(pattern);
+        }
+
+        function renderTree() {
+            const container = document.getElementById('treeContainer');
+            
+            if (!schemaData || !schemaData.databases) {
+                container.innerHTML = '<div class="no-data">No schema data loaded.</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            const filteredDatabases = schemaData.databases.filter(db => 
+                !searchPattern || matchesSearch(db.name) || 
+                db.tables.some(t => matchesSearch(t.name) || 
+                    t.fields.some(f => matchesSearch(f.name) || matchesSearch(f.dataType)) ||
+                    t.indexes.some(i => matchesSearch(i.name))
+                )
+            );
+            
+            if (filteredDatabases.length === 0) {
+                container.innerHTML = '<div class="no-data">No matching items found.</div>';
+                return;
+            }
+            
+            filteredDatabases.forEach(db => {
+                container.appendChild(createDatabaseNode(db));
+            });
+        }
+
+        function createDatabaseNode(db) {
+            const div = document.createElement('div');
+            div.className = 'tree-item';
+            
+            const filteredTables = db.tables.filter(t =>
+                !searchPattern || matchesSearch(t.name) ||
+                t.fields.some(f => matchesSearch(f.name) || matchesSearch(f.dataType)) ||
+                t.indexes.some(i => matchesSearch(i.name))
+            );
+            
+            const isExpanded = searchPattern && filteredTables.length > 0;
+            
+            const content = document.createElement('div');
+            content.className = 'tree-item-content';
+            content.title = `${filteredTables.length} table${filteredTables.length !== 1 ? 's' : ''}`;
+            content.innerHTML = `
+                <span class="expand-icon codicon ${filteredTables.length > 0 ? (isExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right') : ''}"></span>
+                <span class="icon codicon codicon-database"></span>
+                <span class="label">${escapeHtml(db.name)}</span>
+            `;
+            
+            div.appendChild(content);
+            
+            const childrenDiv = document.createElement('div');
+            childrenDiv.className = isExpanded ? 'children' : 'children hidden';
+            
+            filteredTables.forEach(table => {
+                childrenDiv.appendChild(createTableNode(table));
+            });
+            
+            div.appendChild(childrenDiv);
+            
+            content.addEventListener('click', () => {
+                childrenDiv.classList.toggle('hidden');
+                const icon = content.querySelector('.expand-icon');
+                if (childrenDiv.classList.contains('hidden')) {
+                    icon.className = 'expand-icon codicon codicon-chevron-right';
+                } else {
+                    icon.className = 'expand-icon codicon codicon-chevron-down';
+                }
+            });
+            
+            return div;
+        }
+
+        function createTableNode(table) {
+            const div = document.createElement('div');
+            div.className = 'tree-item';
+            
+            const filteredFields = table.fields.filter(f =>
+                !searchPattern || matchesSearch(f.name) || matchesSearch(f.dataType)
+            );
+            
+            const filteredIndexes = table.indexes.filter(i =>
+                !searchPattern || matchesSearch(i.name)
+            );
+            
+            const isExpanded = searchPattern && (filteredFields.length > 0 || filteredIndexes.length > 0);
+            
+            const content = document.createElement('div');
+            content.className = 'tree-item-content';
+            content.title = `${filteredFields.length} field${filteredFields.length !== 1 ? 's' : ''}, ${filteredIndexes.length} index${filteredIndexes.length !== 1 ? 'es' : ''}`;
+            content.innerHTML = `
+                <span class="expand-icon codicon ${isExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right'}"></span>
+                <span class="icon codicon codicon-table"></span>
+                <span class="label">${escapeHtml(table.name)}</span>
+            `;
+            
+            div.appendChild(content);
+            
+            const childrenDiv = document.createElement('div');
+            childrenDiv.className = isExpanded ? 'children' : 'children hidden';
+            
+            if (filteredFields.length > 0) {
+                const fieldsContainer = createContainer('Fields', filteredFields, createFieldNode);
+                childrenDiv.appendChild(fieldsContainer);
+            }
+            
+            if (filteredIndexes.length > 0) {
+                const indexesContainer = createContainer('Indexes', filteredIndexes, createIndexNode);
+                childrenDiv.appendChild(indexesContainer);
+            }
+            
+            div.appendChild(childrenDiv);
+            
+            content.addEventListener('click', () => {
+                childrenDiv.classList.toggle('hidden');
+                const icon = content.querySelector('.expand-icon');
+                if (childrenDiv.classList.contains('hidden')) {
+                    icon.className = 'expand-icon codicon codicon-chevron-right';
+                } else {
+                    icon.className = 'expand-icon codicon codicon-chevron-down';
+                }
+            });
+            
+            return div;
+        }
+
+        function createContainer(label, items, itemRenderer) {
+            const div = document.createElement('div');
+            div.className = 'tree-item';
+            
+            const content = document.createElement('div');
+            content.className = 'tree-item-content';
+            content.innerHTML = `
+                <span class="expand-icon codicon codicon-chevron-down"></span>
+                <span class="icon codicon ${label === 'Fields' ? 'codicon-symbol-field' : 'codicon-key'}"></span>
+                <span class="label">${label}</span>
+            `;
+            
+            div.appendChild(content);
+            
+            const childrenDiv = document.createElement('div');
+            childrenDiv.className = 'children';
+            
+            items.forEach(item => {
+                childrenDiv.appendChild(itemRenderer(item));
+            });
+            
+            div.appendChild(childrenDiv);
+            
+            content.addEventListener('click', () => {
+                childrenDiv.classList.toggle('hidden');
+                const icon = content.querySelector('.expand-icon');
+                if (childrenDiv.classList.contains('hidden')) {
+                    icon.className = 'expand-icon codicon codicon-chevron-right';
+                } else {
+                    icon.className = 'expand-icon codicon codicon-chevron-down';
+                }
+            });
+            
+            return div;
+        }
+
+        function createFieldNode(field) {
+            const div = document.createElement('div');
+            div.className = 'tree-item';
+            
+            // Build description with dataType and extent
+            let description = escapeHtml(field.dataType);
+            if (field.extent && field.extent > 0) {
+                description += ` [${field.extent}]`;
+            }
+            
+            // Check if there are additional details to show
+            const hasDetails = field.label || field.columnLabel || field.format || field.initial;
+            
+            const content = document.createElement('div');
+            content.className = 'tree-item-content';
+            content.innerHTML = `
+                <span class="expand-icon codicon ${hasDetails ? 'codicon-chevron-right' : ''}"></span>
+                <span class="label">${escapeHtml(field.name)}</span>
+                <span class="description">${description}</span>
+            `;
+            
+            div.appendChild(content);
+            
+            if (hasDetails) {
+                const childrenDiv = document.createElement('div');
+                childrenDiv.className = 'children hidden';
+                
+                if (field.label) {
+                    childrenDiv.appendChild(createDetailNode('Label', field.label));
+                }
+                if (field.columnLabel) {
+                    childrenDiv.appendChild(createDetailNode('Column Label', field.columnLabel));
+                }
+                if (field.format) {
+                    childrenDiv.appendChild(createDetailNode('Format', field.format));
+                }
+                if (field.initial !== undefined && field.initial !== null) {
+                    childrenDiv.appendChild(createDetailNode('Initial', field.initial));
+                }
+                
+                div.appendChild(childrenDiv);
+                
+                content.addEventListener('click', () => {
+                    childrenDiv.classList.toggle('hidden');
+                    const icon = content.querySelector('.expand-icon');
+                    if (childrenDiv.classList.contains('hidden')) {
+                        icon.className = 'expand-icon codicon codicon-chevron-right';
+                    } else {
+                        icon.className = 'expand-icon codicon codicon-chevron-down';
+                    }
+                });
+            }
+            
+            return div;
+        }
+
+        function createIndexNode(index) {
+            const div = document.createElement('div');
+            div.className = 'tree-item';
+            
+            const indexType = index.primary ? 'Primary' : index.unique ? 'Unique' : 'Index';
+            const hasFields = index.fields && index.fields.length > 0;
+            
+            const content = document.createElement('div');
+            content.className = 'tree-item-content';
+            content.innerHTML = `
+                <span class="expand-icon codicon ${hasFields ? 'codicon-chevron-right' : ''}"></span>
+                <span class="label">${escapeHtml(index.name)}</span>
+                <span class="description">${indexType}</span>
+            `;
+            
+            div.appendChild(content);
+            
+            if (hasFields) {
+                const childrenDiv = document.createElement('div');
+                childrenDiv.className = 'children hidden';
+                
+                index.fields.forEach((fieldName, idx) => {
+                    childrenDiv.appendChild(createIndexFieldNode(fieldName, idx + 1));
+                });
+                
+                div.appendChild(childrenDiv);
+                
+                content.addEventListener('click', () => {
+                    childrenDiv.classList.toggle('hidden');
+                    const icon = content.querySelector('.expand-icon');
+                    if (childrenDiv.classList.contains('hidden')) {
+                        icon.className = 'expand-icon codicon codicon-chevron-right';
+                    } else {
+                        icon.className = 'expand-icon codicon codicon-chevron-down';
+                    }
+                });
+            }
+            
+            return div;
+        }
+        
+        function createIndexFieldNode(fieldName, position) {
+            const div = document.createElement('div');
+            div.className = 'tree-item';
+            
+            const content = document.createElement('div');
+            content.className = 'tree-item-content';
+            content.innerHTML = `
+                <span class="expand-icon"></span>
+                <span class="label">${escapeHtml(fieldName)}</span>
+                <span class="description">Position ${position}</span>
+            `;
+            
+            div.appendChild(content);
+            return div;
+        }
+        
+        function createDetailNode(label, value) {
+            const div = document.createElement('div');
+            div.className = 'tree-item';
+            
+            const content = document.createElement('div');
+            content.className = 'tree-item-content';
+            content.innerHTML = `
+                <span class="expand-icon"></span>
+                <span class="label">${escapeHtml(label)}</span>
+                <span class="description">${escapeHtml(String(value))}</span>
+            `;
+            
+            div.appendChild(content);
+            return div;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function showLoading() {
+            const container = document.getElementById('treeContainer');
+            container.innerHTML = '<div class="loading">Loading schema...</div>';
+        }
+    </script>
+</body>
+</html>
