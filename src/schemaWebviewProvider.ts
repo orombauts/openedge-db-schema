@@ -102,7 +102,7 @@ export class SchemaWebviewProvider implements vscode.WebviewViewProvider {
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const nonce = getNonce();
         const codiconUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css')
+            vscode.Uri.joinPath(this._extensionUri, 'resources', 'codicons', 'codicon.css')
         );
         
         // Load HTML template

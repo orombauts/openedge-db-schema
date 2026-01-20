@@ -2,7 +2,7 @@
   "name": "openedge-db-schema",
   "displayName": "OpenEdge DB Schema",
   "description": "View and explore OpenEdge database schema",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "csysolivierrombauts",
   "icon": "icon.png",
   "repository": {
