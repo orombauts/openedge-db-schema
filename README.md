@@ -67,3 +67,7 @@ Right-click on **database** or **table** nodes to access the context menu:
 2. Compile: `npm run compile`
 3. Press F5 to launch extension in debug mode
 4. In the launch.json, specify a test workspace path if needed
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and release notes
