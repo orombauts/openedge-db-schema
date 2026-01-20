@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.4] - 2026-01-20
+
+### Fixed
+- Fixed webview content being lost when switching to another view and back
+- Added `retainContextWhenHidden` option to preserve webview state
+
 ## [1.0.3] - 2026-01-20
 
 ### Fixed

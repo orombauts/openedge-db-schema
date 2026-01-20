@@ -23,7 +23,12 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(
             SchemaWebviewProvider.viewType,
-            schemaWebviewProvider
+            schemaWebviewProvider,
+            {
+                webviewOptions: {
+                    retainContextWhenHidden: true
+                }
+            }
         )
     );
 
