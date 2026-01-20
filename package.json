@@ -2,8 +2,9 @@
   "name": "openedge-db-schema",
   "displayName": "OpenEdge DB Schema",
   "description": "View and explore OpenEdge database schema",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "csysolivierrombauts",
+  "icon": "icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/orombauts/openedge-db-schema.git"
