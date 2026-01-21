@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.0] - 2026-01-21
+
+### Added
+- Support sorting on fields and indexes
+- Keep controls visible on scrolling the view
+
+### Fixed
+- Fixed link to OpenEdge ABL extension in readme file
+
 ## [1.0.4] - 2026-01-20
 
 ### Fixed

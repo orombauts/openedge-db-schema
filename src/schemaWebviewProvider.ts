@@ -44,6 +44,12 @@ export class SchemaWebviewProvider implements vscode.WebviewViewProvider {
                 case 'copyNode':
                     this._handleCopyNode(data);
                     break;
+                case 'refresh':
+                    vscode.commands.executeCommand('openedge-db-schema.refreshSchema');
+                    break;
+                case 'save':
+                    vscode.commands.executeCommand('openedge-db-schema.dumpSchema');
+                    break;
             }
         });
 

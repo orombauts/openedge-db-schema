@@ -7,18 +7,39 @@
     <link rel="stylesheet" href="{{codiconUri}}">
     <title>OpenEdge ABL Schema</title>
     <style>
-        body {
-            padding: 0;
+        html, body {
+            height: 100%;
             margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
             font-family: var(--vscode-font-family);
             font-size: var(--vscode-font-size);
             color: var(--vscode-foreground);
         }
         
         .search-container {
+            flex-shrink: 0;
             padding: 8px;
             background: var(--vscode-sideBar-background);
             border-bottom: 1px solid var(--vscode-panel-border);
+        }
+        
+        .toolbar {
+            display: flex;
+            justify-content: flex-end;
+            gap: 4px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+        }
+        
+        .toolbar button {
+            padding: 4px 8px;
         }
         
         .search-box {
@@ -88,6 +109,7 @@
         }
         
         .tree-container {
+            flex: 1;
             padding: 8px;
             overflow: auto;
         }
@@ -201,6 +223,11 @@
 </head>
 <body>
     <div class="search-container">
+        <div class="toolbar">
+            <button id="refreshBtn" title="Refresh Schema" class="codicon codicon-refresh"></button>
+            <button id="saveBtn" title="Dump Schema to File" class="codicon codicon-save"></button>
+            <button id="sortAlphabeticallyBtn" class="toggle-btn codicon codicon-sort-precedence" title="Sort fields and indexes alphabetically"></button>
+        </div>
         <div class="search-box">
             <input type="text" id="searchInput" placeholder="Search schema...">
             <button id="searchBtn" title="Search" class="codicon codicon-search"></button>
@@ -218,11 +245,24 @@
     <script nonce="{{nonce}}">
         const vscode = acquireVsCodeApi();
         let schemaData = null;
+        let originalFieldsOrder = new Map(); // Store original order of fields per table
+        let originalIndexesOrder = new Map(); // Store original order of indexes per table
+        let expandedNodes = new Set(); // Track which nodes are expanded
         let searchPattern = '';
         let caseSensitive = false;
         let useWildcard = false;
+        let sortAlphabetically = false;
         let contextMenu = null;
         let contextMenuTarget = null;
+
+        // Restore state if available
+        const previousState = vscode.getState();
+        if (previousState) {
+            sortAlphabetically = previousState.sortAlphabetically || false;
+            if (sortAlphabetically) {
+                document.getElementById('sortAlphabeticallyBtn').classList.add('active');
+            }
+        }
 
         // Listen for messages from extension
         window.addEventListener('message', event => {
@@ -233,9 +273,37 @@
                     break;
                 case 'schemaData':
                     schemaData = message.data;
+                    // Store original field and index order for each table
+                    if (schemaData && schemaData.databases) {
+                        schemaData.databases.forEach(db => {
+                            db.tables.forEach(table => {
+                                const key = `${db.name}.${table.name}`;
+                                originalFieldsOrder.set(key, [...table.fields]);
+                                originalIndexesOrder.set(key, [...table.indexes]);
+                            });
+                        });
+                    }
                     renderTree();
                     break;
             }
+        });
+
+        // Toolbar button handlers
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            vscode.postMessage({ type: 'refresh' });
+        });
+
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            vscode.postMessage({ type: 'save' });
+        });
+
+        document.getElementById('sortAlphabeticallyBtn').addEventListener('click', (e) => {
+            sortAlphabetically = !sortAlphabetically;
+            e.target.classList.toggle('active', sortAlphabetically);
+            vscode.setState({ sortAlphabetically });
+            captureExpandedState();
+            renderTree();
+            restoreExpandedState();
         });
 
         // Search functionality
@@ -421,6 +489,55 @@
             return target.includes(pattern);
         }
 
+        function captureExpandedState() {
+            expandedNodes.clear();
+            const treeItems = document.querySelectorAll('.tree-item');
+            treeItems.forEach(item => {
+                const childrenDiv = item.querySelector(':scope > .children');
+                if (childrenDiv && !childrenDiv.classList.contains('hidden')) {
+                    // Build a path identifier for this node
+                    const label = item.querySelector('.tree-item-content .label');
+                    if (label) {
+                        const path = getNodePath(item);
+                        expandedNodes.add(path);
+                    }
+                }
+            });
+        }
+
+        function getNodePath(element) {
+            const labels = [];
+            let current = element;
+            while (current) {
+                if (current.classList && current.classList.contains('tree-item')) {
+                    const label = current.querySelector(':scope > .tree-item-content .label');
+                    if (label) {
+                        labels.unshift(label.textContent);
+                    }
+                }
+                current = current.parentElement;
+            }
+            return labels.join('/');
+        }
+
+        function restoreExpandedState() {
+            const treeItems = document.querySelectorAll('.tree-item');
+            treeItems.forEach(item => {
+                const path = getNodePath(item);
+                if (expandedNodes.has(path)) {
+                    const childrenDiv = item.querySelector(':scope > .children');
+                    const expandIcon = item.querySelector(':scope > .tree-item-content .expand-icon');
+                    if (childrenDiv && childrenDiv.classList.contains('hidden')) {
+                        childrenDiv.classList.remove('hidden');
+                        if (expandIcon && expandIcon.classList.contains('codicon-chevron-right')) {
+                            expandIcon.classList.remove('codicon-chevron-right');
+                            expandIcon.classList.add('codicon-chevron-down');
+                        }
+                    }
+                }
+            });
+        }
+
         function renderTree() {
             const container = document.getElementById('treeContainer');
             
@@ -476,7 +593,7 @@
             childrenDiv.className = isExpanded ? 'children' : 'children hidden';
             
             filteredTables.forEach(table => {
-                childrenDiv.appendChild(createTableNode(table));
+                childrenDiv.appendChild(createTableNode(table, db.name));
             });
             
             div.appendChild(childrenDiv);
@@ -494,7 +611,7 @@
             return div;
         }
 
-        function createTableNode(table) {
+        function createTableNode(table, databaseName) {
             const div = document.createElement('div');
             div.className = 'tree-item';
             
@@ -523,7 +640,7 @@
             childrenDiv.className = isExpanded ? 'children' : 'children hidden';
             
             if (filteredFields.length > 0) {
-                const fieldsContainer = createContainer('Fields', filteredFields, createFieldNode);
+                const fieldsContainer = createContainer('Fields', filteredFields, createFieldNode, databaseName, table.name);
                 childrenDiv.appendChild(fieldsContainer);
             }
             
@@ -547,7 +664,7 @@
             return div;
         }
 
-        function createContainer(label, items, itemRenderer) {
+        function createContainer(label, items, itemRenderer, databaseName, tableName) {
             const div = document.createElement('div');
             div.className = 'tree-item';
             
@@ -564,7 +681,13 @@
             const childrenDiv = document.createElement('div');
             childrenDiv.className = 'children';
             
-            items.forEach(item => {
+            // Sort fields or indexes alphabetically if enabled
+            let itemsToRender = items;
+            if ((label === 'Fields' || label === 'Indexes') && sortAlphabetically) {
+                itemsToRender = [...items].sort((a, b) => a.name.localeCompare(b.name));
+            }
+            
+            itemsToRender.forEach(item => {
                 childrenDiv.appendChild(itemRenderer(item));
             });
             
