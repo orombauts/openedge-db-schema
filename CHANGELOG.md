@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0] - 2026-02-20
+
+### Added
+- Improvements on Search:
+    - Matching text is highlighted in the tree view
+    - If the search matches a table name, the table node now offers it child nodes to be viewed when expanding the table node
+- Node texts of databases, tables, fields and indexes are now selectable, allowing them to copy via ctrl-C
+- Context menu now has two options to copy: Copy name and Copy JSON". The latter is applicable to the database or table node (as before)
+
+### Fixed
+- Search: Nodes now only auto-expand when their *children* match; a node whose own name matches starts collapsed and can be manually expanded
+
 ## [1.1.0] - 2026-01-21
 
 ### Added

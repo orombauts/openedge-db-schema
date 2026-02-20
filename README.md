@@ -17,10 +17,10 @@ You can find the OpenEdge ABL extension in the VS Code Marketplace:
 - **Integrated toolbar** with Refresh, Save, and Sort controls that stay visible while scrolling
 - **Sort fields and indexes alphabetically** with toggle button (preserves original order when disabled)
 - **Embedded search box** with case-sensitive and wildcard options
+- **Search highlighting**: matching text is highlighted directly in the tree nodes
 - Browse databases, tables, fields, and indexes hierarchically
 - View detailed field information (extent, label, format, initial value)
-- **Right-click copy**: Copy database or table definitions as JSON to clipboard
-- Automatic tree expansion when searching
+- **Right-click context menu** on any node: copy the node name or copy database/table definitions as JSON
 - Loading indicator for schema refresh operations
 - Save schema to `.openedge-db-schema/schema.json` in the workspace
 
@@ -48,8 +48,9 @@ The view includes a persistent search box with:
 - **Search input**: Type to filter databases, tables, fields, and indexes in real-time
 - **Search/Clear buttons**: Apply or clear the current filter
 - **Case-sensitive toggle**: Match exact case in search
-- **Wildcard toggle**: Enable wildcard patterns (* = any characters, ? = single character)
-- **Auto-expand**: Search results automatically expand to show matching items
+- **Wildcard toggle**: Enable wildcard patterns (`*` = any characters, `?` = single character)
+- **Match highlighting**: Matched portions of text are highlighted in the tree
+- **Smart auto-expand**: When a field or index name matches, its parent table is automatically expanded to reveal it. When a table or database name itself matches, the node is shown collapsed so you can explore its children at your own pace
 
 ### Toolbar
 
@@ -62,10 +63,11 @@ The toolbar remains visible while scrolling through the schema tree.
 
 ### Copy to Clipboard
 
-Right-click on **database** or **table** nodes to access the context menu:
-- **Copy**: Copies the node and all its children as JSON
-- JSON structure matches the OpenEdge ABL extension schema format
-- Perfect for sharing schema definitions or creating test data
+Right-click on any database, table, field, or index node to access the context menu:
+- **Copy name**: Copies the node's label text to the clipboard (available on all nodes)
+- **Copy JSON**: Copies the full database or table definition as formatted JSON (available on database and table nodes only)
+
+The JSON structure matches the OpenEdge ABL extension schema format, making it easy to share schema definitions.
 
 ## Development
 

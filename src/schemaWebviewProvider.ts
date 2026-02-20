@@ -44,6 +44,9 @@ export class SchemaWebviewProvider implements vscode.WebviewViewProvider {
                 case 'copyNode':
                     this._handleCopyNode(data);
                     break;
+                case 'copyName':
+                    vscode.env.clipboard.writeText(data.name);
+                    break;
                 case 'refresh':
                     vscode.commands.executeCommand('openedge-db-schema.refreshSchema');
                     break;
@@ -110,16 +113,16 @@ export class SchemaWebviewProvider implements vscode.WebviewViewProvider {
         const codiconUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'resources', 'codicons', 'codicon.css')
         );
-        
+
         // Load HTML template
         const htmlPath = path.join(this._extensionUri.fsPath, 'resources', 'webview.html');
         let html = fs.readFileSync(htmlPath, 'utf8');
-        
+
         // Inject dynamic values
         html = html.replace(/\{\{nonce\}\}/g, nonce);
         html = html.replace(/\{\{cspSource\}\}/g, webview.cspSource);
         html = html.replace(/\{\{codiconUri\}\}/g, codiconUri.toString());
-        
+
         return html;
     }
 }

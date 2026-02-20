@@ -21,14 +21,14 @@
             font-size: var(--vscode-font-size);
             color: var(--vscode-foreground);
         }
-        
+
         .search-container {
             flex-shrink: 0;
             padding: 8px;
             background: var(--vscode-sideBar-background);
             border-bottom: 1px solid var(--vscode-panel-border);
         }
-        
+
         .toolbar {
             display: flex;
             justify-content: flex-end;
@@ -37,17 +37,17 @@
             padding-bottom: 12px;
             border-bottom: 1px solid var(--vscode-panel-border);
         }
-        
+
         .toolbar button {
             padding: 4px 8px;
         }
-        
+
         .search-box {
             display: flex;
             gap: 4px;
             margin-bottom: 6px;
         }
-        
+
         input[type="text"] {
             flex: 1;
             padding: 4px 8px;
@@ -56,11 +56,11 @@
             border: 1px solid var(--vscode-input-border);
             outline: none;
         }
-        
+
         input[type="text"]:focus {
             border-color: var(--vscode-focusBorder);
         }
-        
+
         button {
             padding: 4px 8px;
             background: var(--vscode-button-background);
@@ -71,22 +71,22 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         button:hover {
             background: var(--vscode-button-hoverBackground);
         }
-        
+
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
-        
+
         .options {
             display: flex;
             gap: 4px;
             font-size: 12px;
         }
-        
+
         .toggle-btn {
             padding: 4px 8px;
             background: var(--vscode-button-secondaryBackground);
@@ -97,44 +97,43 @@
             align-items: center;
             gap: 4px;
         }
-        
+
         .toggle-btn:hover {
             background: var(--vscode-button-secondaryHoverBackground);
         }
-        
+
         .toggle-btn.active {
             background: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
             border-color: var(--vscode-focusBorder);
         }
-        
+
         .tree-container {
             flex: 1;
             padding: 8px;
             overflow: auto;
         }
-        
+
         .tree-item {
             padding: 2px 0;
             cursor: pointer;
-            user-select: none;
         }
-        
+
         .tree-item:hover {
             background: var(--vscode-list-hoverBackground);
         }
-        
+
         .tree-item-content {
             display: flex;
             align-items: center;
             padding: 2px 4px;
         }
-        
+
         .tree-item.selected {
             background: var(--vscode-list-activeSelectionBackground);
             color: var(--vscode-list-activeSelectionForeground);
         }
-        
+
         .expand-icon {
             width: 16px;
             height: 16px;
@@ -142,45 +141,49 @@
             align-items: center;
             justify-content: center;
             margin-right: 2px;
+            -webkit-user-select: none;
+            user-select: none;
         }
-        
+
         .icon {
             margin: 0 4px;
             font-size: 16px;
             display: inline-flex;
             align-items: center;
+            -webkit-user-select: none;
+            user-select: none;
         }
-        
+
         .label {
             flex: 1;
         }
-        
+
         .description {
             color: var(--vscode-descriptionForeground);
             margin-left: 8px;
             font-size: 0.9em;
         }
-        
+
         .children {
             margin-left: 16px;
         }
-        
+
         .hidden {
             display: none;
         }
-        
+
         .no-data {
             padding: 16px;
             text-align: center;
             color: var(--vscode-descriptionForeground);
         }
-        
+
         .loading {
             padding: 16px;
             text-align: center;
             color: var(--vscode-descriptionForeground);
         }
-        
+
         .loading::before {
             content: "";
             display: inline-block;
@@ -193,11 +196,11 @@
             margin-right: 8px;
             vertical-align: middle;
         }
-        
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        
+
         .context-menu {
             position: fixed;
             background: var(--vscode-menu-background);
@@ -206,7 +209,7 @@
             z-index: 1000;
             min-width: 150px;
         }
-        
+
         .context-menu-item {
             padding: 4px 12px;
             cursor: pointer;
@@ -214,10 +217,16 @@
             align-items: center;
             gap: 8px;
         }
-        
+
         .context-menu-item:hover {
             background: var(--vscode-menu-selectionBackground);
             color: var(--vscode-menu-selectionForeground);
+        }
+
+        .search-highlight {
+            background: var(--vscode-editor-findMatchHighlightBackground, #ea5c0055);
+            color: inherit;
+            border-radius: 2px;
         }
     </style>
 </head>
@@ -241,7 +250,7 @@
     <div class="tree-container" id="treeContainer">
         <div class="no-data">No schema data loaded. Click refresh to load schema.</div>
     </div>
-    
+
     <script nonce="{{nonce}}">
         const vscode = acquireVsCodeApi();
         let schemaData = null;
@@ -254,6 +263,7 @@
         let sortAlphabetically = false;
         let contextMenu = null;
         let contextMenuTarget = null;
+        let mouseDownPos = { x: 0, y: 0 };
 
         // Restore state if available
         const previousState = vscode.getState();
@@ -342,52 +352,77 @@
             }
         });
 
-        // Context menu handling
+        // Suppress the native context menu entirely so VS Code's chrome never intercepts it
         document.addEventListener('contextmenu', (e) => {
-            // Find if click was on a tree item
-            let target = e.target;
-            while (target && !target.classList.contains('tree-item')) {
-                target = target.parentElement;
-            }
-            
-            // Show context menu for database or table nodes
-            if (target && target.classList.contains('tree-item')) {
-                const content = target.querySelector('.tree-item-content');
-                const hasTableIcon = content && content.querySelector('.codicon-table');
-                const hasDatabaseIcon = content && content.querySelector('.codicon-database');
-                
-                if (hasTableIcon || hasDatabaseIcon) {
+            e.preventDefault();
+            e.stopPropagation();
+        }, true /* capture phase */);
+
+        // Detect right-click on mousedown (before VS Code can steal focus)
+        // Also track position to distinguish plain clicks from drag-selections
+        document.addEventListener('mousedown', (e) => {
+            mouseDownPos = { x: e.clientX, y: e.clientY };
+
+            if (e.button === 2) {
+                const target = e.target.closest('.tree-item');
+                if (target && !target.classList.contains('tree-item--container')) {
                     e.preventDefault();
-                    contextMenuTarget = target;
-                    showContextMenu(e.pageX, e.pageY);
+                    showContextMenu(e.clientX, e.clientY, target);
+                } else {
+                    hideContextMenu();
                 }
             }
         });
 
-        document.addEventListener('click', (e) => {
-            if (contextMenu && !contextMenu.contains(e.target)) {
+        // Hide context menu when clicking outside it (left-click)
+        document.addEventListener('pointerdown', (e) => {
+            if (e.button !== 2 && contextMenu && !contextMenu.contains(e.target)) {
                 hideContextMenu();
             }
         });
 
-        function showContextMenu(x, y) {
+        function showContextMenu(x, y, target) {
             hideContextMenu();
-            
+            contextMenuTarget = target;
+
             contextMenu = document.createElement('div');
             contextMenu.className = 'context-menu';
             contextMenu.style.left = x + 'px';
             contextMenu.style.top = y + 'px';
-            
-            const copyItem = document.createElement('div');
-            copyItem.className = 'context-menu-item';
-            copyItem.innerHTML = '<span class="codicon codicon-copy"></span>Copy';
-            copyItem.addEventListener('click', () => {
-                copyNodeToClipboard(contextMenuTarget);
+
+            // "Copy name" is available on every node
+            const copyNameItem = document.createElement('div');
+            copyNameItem.className = 'context-menu-item';
+            copyNameItem.innerHTML = '<span class="codicon codicon-copy"></span>Copy name';
+            copyNameItem.addEventListener('click', () => {
+                copyNodeName(contextMenuTarget);
                 hideContextMenu();
             });
-            
-            contextMenu.appendChild(copyItem);
+            contextMenu.appendChild(copyNameItem);
+
+            // "Copy JSON" only for database and table nodes
+            const content = contextMenuTarget.querySelector('.tree-item-content');
+            const hasTableIcon = content && content.querySelector('.codicon-table');
+            const hasDatabaseIcon = content && content.querySelector('.codicon-database');
+            if (hasTableIcon || hasDatabaseIcon) {
+                const copyJsonItem = document.createElement('div');
+                copyJsonItem.className = 'context-menu-item';
+                copyJsonItem.innerHTML = '<span class="codicon codicon-json"></span>Copy JSON';
+                copyJsonItem.addEventListener('click', () => {
+                    copyNodeToClipboard(contextMenuTarget);
+                    hideContextMenu();
+                });
+                contextMenu.appendChild(copyJsonItem);
+            }
+
             document.body.appendChild(contextMenu);
+        }
+
+        function copyNodeName(node) {
+            const content = node.querySelector('.tree-item-content');
+            const label = content && content.querySelector('.label');
+            const name = label ? label.textContent.trim() : '';
+            vscode.postMessage({ type: 'copyName', name });
         }
 
         function hideContextMenu() {
@@ -402,10 +437,10 @@
             const content = node.querySelector('.tree-item-content');
             const label = content.querySelector('.label');
             const nodeName = label ? label.textContent : '';
-            
+
             const hasTableIcon = content && content.querySelector('.codicon-table');
             const hasDatabaseIcon = content && content.querySelector('.codicon-database');
-            
+
             if (hasDatabaseIcon) {
                 // Copy database
                 vscode.postMessage({
@@ -419,12 +454,12 @@
                 while (dbNode && !dbNode.classList.contains('tree-item')) {
                     dbNode = dbNode.parentElement;
                 }
-                
+
                 if (dbNode) {
                     const dbContent = dbNode.querySelector('.tree-item-content');
                     const dbLabel = dbContent.querySelector('.label');
                     const databaseName = dbLabel ? dbLabel.textContent : '';
-                    
+
                     vscode.postMessage({
                         type: 'copyNode',
                         nodeType: 'table',
@@ -438,19 +473,19 @@
         function getNodeText(node, indent) {
             let text = '';
             const indentStr = '  '.repeat(indent);
-            
+
             const content = node.querySelector('.tree-item-content');
             if (content) {
                 const label = content.querySelector('.label');
                 const description = content.querySelector('.description');
-                
+
                 text = indentStr + (label ? label.textContent : '');
                 if (description && description.textContent) {
                     text += ' - ' + description.textContent;
                 }
                 text += '\n';
             }
-            
+
             // Add all children (regardless of whether they're hidden or not)
             const childrenDiv = node.querySelector(':scope > .children');
             if (childrenDiv) {
@@ -459,21 +494,21 @@
                     text += getNodeText(child, indent + 1);
                 });
             }
-            
+
             return text;
         }
 
         function matchesSearch(text) {
             if (!searchPattern) return true;
-            
+
             let pattern = searchPattern;
             let target = text;
-            
+
             if (!caseSensitive) {
                 pattern = pattern.toLowerCase();
                 target = target.toLowerCase();
             }
-            
+
             if (useWildcard) {
                 // Escape special regex characters except * and ?
                 let regexPattern = pattern;
@@ -485,7 +520,7 @@
                 const regex = new RegExp('^' + regexPattern + '$', caseSensitive ? '' : 'i');
                 return regex.test(target);
             }
-            
+
             return target.includes(pattern);
         }
 
@@ -538,29 +573,49 @@
             });
         }
 
+        function toggleNode(e, childrenDiv, icon) {
+            // If the mouse moved more than 4px between mousedown and click it was a drag (text selection)
+            const dx = e.clientX - mouseDownPos.x;
+            const dy = e.clientY - mouseDownPos.y;
+            if (Math.sqrt(dx * dx + dy * dy) > 4) {
+                return;
+            }
+
+            // Clear any lingering text selection on a plain click
+            if (window.getSelection) {
+                window.getSelection().removeAllRanges();
+            }
+            childrenDiv.classList.toggle('hidden');
+            if (childrenDiv.classList.contains('hidden')) {
+                icon.className = 'expand-icon codicon codicon-chevron-right';
+            } else {
+                icon.className = 'expand-icon codicon codicon-chevron-down';
+            }
+        }
+
         function renderTree() {
             const container = document.getElementById('treeContainer');
-            
+
             if (!schemaData || !schemaData.databases) {
                 container.innerHTML = '<div class="no-data">No schema data loaded.</div>';
                 return;
             }
-            
+
             container.innerHTML = '';
-            
-            const filteredDatabases = schemaData.databases.filter(db => 
-                !searchPattern || matchesSearch(db.name) || 
-                db.tables.some(t => matchesSearch(t.name) || 
+
+            const filteredDatabases = schemaData.databases.filter(db =>
+                !searchPattern || matchesSearch(db.name) ||
+                db.tables.some(t => matchesSearch(t.name) ||
                     t.fields.some(f => matchesSearch(f.name) || matchesSearch(f.dataType)) ||
                     t.indexes.some(i => matchesSearch(i.name))
                 )
             );
-            
+
             if (filteredDatabases.length === 0) {
                 container.innerHTML = '<div class="no-data">No matching items found.</div>';
                 return;
             }
-            
+
             filteredDatabases.forEach(db => {
                 container.appendChild(createDatabaseNode(db));
             });
@@ -569,105 +624,99 @@
         function createDatabaseNode(db) {
             const div = document.createElement('div');
             div.className = 'tree-item';
-            
-            const filteredTables = db.tables.filter(t =>
+
+            // If the database name itself matches, show all tables unfiltered
+            const dbNameMatches = searchPattern && matchesSearch(db.name);
+            const filteredTables = dbNameMatches ? db.tables : db.tables.filter(t =>
                 !searchPattern || matchesSearch(t.name) ||
                 t.fields.some(f => matchesSearch(f.name) || matchesSearch(f.dataType)) ||
                 t.indexes.some(i => matchesSearch(i.name))
             );
-            
-            const isExpanded = searchPattern && filteredTables.length > 0;
-            
+
+            // Auto-expand only when children matched (not when the db name itself matched)
+            const dbExpanded = searchPattern && !dbNameMatches && filteredTables.length > 0;
+
             const content = document.createElement('div');
             content.className = 'tree-item-content';
             content.title = `${filteredTables.length} table${filteredTables.length !== 1 ? 's' : ''}`;
             content.innerHTML = `
-                <span class="expand-icon codicon ${filteredTables.length > 0 ? (isExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right') : ''}"></span>
+                <span class="expand-icon codicon ${filteredTables.length > 0 ? (dbExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right') : ''}"></span>
                 <span class="icon codicon codicon-database"></span>
-                <span class="label">${escapeHtml(db.name)}</span>
+                <span class="label">${highlightText(db.name)}</span>
             `;
-            
+
             div.appendChild(content);
-            
+
             const childrenDiv = document.createElement('div');
-            childrenDiv.className = isExpanded ? 'children' : 'children hidden';
-            
+            childrenDiv.className = dbExpanded ? 'children' : 'children hidden';
+
             filteredTables.forEach(table => {
                 childrenDiv.appendChild(createTableNode(table, db.name));
             });
-            
+
             div.appendChild(childrenDiv);
-            
-            content.addEventListener('click', () => {
-                childrenDiv.classList.toggle('hidden');
-                const icon = content.querySelector('.expand-icon');
-                if (childrenDiv.classList.contains('hidden')) {
-                    icon.className = 'expand-icon codicon codicon-chevron-right';
-                } else {
-                    icon.className = 'expand-icon codicon codicon-chevron-down';
-                }
+
+            content.addEventListener('click', (e) => {
+                toggleNode(e, childrenDiv, content.querySelector('.expand-icon'));
             });
-            
+
             return div;
         }
 
         function createTableNode(table, databaseName) {
             const div = document.createElement('div');
             div.className = 'tree-item';
-            
-            const filteredFields = table.fields.filter(f =>
+
+            // If the table name itself matches, show all fields and indexes unfiltered
+            const tableNameMatches = searchPattern && matchesSearch(table.name);
+            const filteredFields = tableNameMatches ? table.fields : table.fields.filter(f =>
                 !searchPattern || matchesSearch(f.name) || matchesSearch(f.dataType)
             );
-            
-            const filteredIndexes = table.indexes.filter(i =>
+
+            const filteredIndexes = tableNameMatches ? table.indexes : table.indexes.filter(i =>
                 !searchPattern || matchesSearch(i.name)
             );
-            
-            const isExpanded = searchPattern && (filteredFields.length > 0 || filteredIndexes.length > 0);
-            
+
+            // Auto-expand only when children matched (not when the table name itself matched)
+            const tableExpanded = searchPattern && !tableNameMatches && (filteredFields.length > 0 || filteredIndexes.length > 0);
+
             const content = document.createElement('div');
             content.className = 'tree-item-content';
             content.title = `${filteredFields.length} field${filteredFields.length !== 1 ? 's' : ''}, ${filteredIndexes.length} index${filteredIndexes.length !== 1 ? 'es' : ''}`;
             content.innerHTML = `
-                <span class="expand-icon codicon ${isExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right'}"></span>
+                <span class="expand-icon codicon ${tableExpanded ? 'codicon-chevron-down' : 'codicon-chevron-right'}"></span>
                 <span class="icon codicon codicon-table"></span>
-                <span class="label">${escapeHtml(table.name)}</span>
+                <span class="label">${highlightText(table.name)}</span>
             `;
-            
+
             div.appendChild(content);
-            
+
             const childrenDiv = document.createElement('div');
-            childrenDiv.className = isExpanded ? 'children' : 'children hidden';
-            
+            childrenDiv.className = tableExpanded ? 'children' : 'children hidden';
+
             if (filteredFields.length > 0) {
                 const fieldsContainer = createContainer('Fields', filteredFields, createFieldNode, databaseName, table.name);
                 childrenDiv.appendChild(fieldsContainer);
             }
-            
+
             if (filteredIndexes.length > 0) {
                 const indexesContainer = createContainer('Indexes', filteredIndexes, createIndexNode);
                 childrenDiv.appendChild(indexesContainer);
             }
-            
+
             div.appendChild(childrenDiv);
-            
-            content.addEventListener('click', () => {
-                childrenDiv.classList.toggle('hidden');
-                const icon = content.querySelector('.expand-icon');
-                if (childrenDiv.classList.contains('hidden')) {
-                    icon.className = 'expand-icon codicon codicon-chevron-right';
-                } else {
-                    icon.className = 'expand-icon codicon codicon-chevron-down';
-                }
+
+            content.addEventListener('click', (e) => {
+                toggleNode(e, childrenDiv, content.querySelector('.expand-icon'));
             });
-            
+
             return div;
         }
 
         function createContainer(label, items, itemRenderer, databaseName, tableName) {
             const div = document.createElement('div');
-            div.className = 'tree-item';
-            
+            div.className = 'tree-item tree-item--container';
+
             const content = document.createElement('div');
             content.className = 'tree-item-content';
             content.innerHTML = `
@@ -675,64 +724,58 @@
                 <span class="icon codicon ${label === 'Fields' ? 'codicon-symbol-field' : 'codicon-key'}"></span>
                 <span class="label">${label}</span>
             `;
-            
+
             div.appendChild(content);
-            
+
             const childrenDiv = document.createElement('div');
             childrenDiv.className = 'children';
-            
+
             // Sort fields or indexes alphabetically if enabled
             let itemsToRender = items;
             if ((label === 'Fields' || label === 'Indexes') && sortAlphabetically) {
                 itemsToRender = [...items].sort((a, b) => a.name.localeCompare(b.name));
             }
-            
+
             itemsToRender.forEach(item => {
                 childrenDiv.appendChild(itemRenderer(item));
             });
-            
+
             div.appendChild(childrenDiv);
-            
-            content.addEventListener('click', () => {
-                childrenDiv.classList.toggle('hidden');
-                const icon = content.querySelector('.expand-icon');
-                if (childrenDiv.classList.contains('hidden')) {
-                    icon.className = 'expand-icon codicon codicon-chevron-right';
-                } else {
-                    icon.className = 'expand-icon codicon codicon-chevron-down';
-                }
+
+            content.addEventListener('click', (e) => {
+                toggleNode(e, childrenDiv, content.querySelector('.expand-icon'));
             });
-            
+
             return div;
         }
 
         function createFieldNode(field) {
             const div = document.createElement('div');
             div.className = 'tree-item';
-            
+
             // Build description with dataType and extent
-            let description = escapeHtml(field.dataType);
+            let description = highlightText(field.dataType);
             if (field.extent && field.extent > 0) {
                 description += ` [${field.extent}]`;
             }
-            
+
             // Check if there are additional details to show
             const hasDetails = field.label || field.columnLabel || field.format || field.initial;
-            
+
             const content = document.createElement('div');
             content.className = 'tree-item-content';
             content.innerHTML = `
                 <span class="expand-icon codicon ${hasDetails ? 'codicon-chevron-right' : ''}"></span>
-                <span class="label">${escapeHtml(field.name)}</span>
+                <span class="label">${highlightText(field.name)}</span>
                 <span class="description">${description}</span>
             `;
-            
+
             div.appendChild(content);
-            
+
             if (hasDetails) {
                 const childrenDiv = document.createElement('div');
                 childrenDiv.className = 'children hidden';
-                
+
                 if (field.label) {
                     childrenDiv.appendChild(createDetailNode('Label', field.label));
                 }
@@ -745,68 +788,56 @@
                 if (field.initial !== undefined && field.initial !== null) {
                     childrenDiv.appendChild(createDetailNode('Initial', field.initial));
                 }
-                
+
                 div.appendChild(childrenDiv);
-                
-                content.addEventListener('click', () => {
-                    childrenDiv.classList.toggle('hidden');
-                    const icon = content.querySelector('.expand-icon');
-                    if (childrenDiv.classList.contains('hidden')) {
-                        icon.className = 'expand-icon codicon codicon-chevron-right';
-                    } else {
-                        icon.className = 'expand-icon codicon codicon-chevron-down';
-                    }
+
+                content.addEventListener('click', (e) => {
+                    toggleNode(e, childrenDiv, content.querySelector('.expand-icon'));
                 });
             }
-            
+
             return div;
         }
 
         function createIndexNode(index) {
             const div = document.createElement('div');
             div.className = 'tree-item';
-            
+
             const indexType = index.primary ? 'Primary' : index.unique ? 'Unique' : 'Index';
             const hasFields = index.fields && index.fields.length > 0;
-            
+
             const content = document.createElement('div');
             content.className = 'tree-item-content';
             content.innerHTML = `
                 <span class="expand-icon codicon ${hasFields ? 'codicon-chevron-right' : ''}"></span>
-                <span class="label">${escapeHtml(index.name)}</span>
+                <span class="label">${highlightText(index.name)}</span>
                 <span class="description">${indexType}</span>
             `;
-            
+
             div.appendChild(content);
-            
+
             if (hasFields) {
                 const childrenDiv = document.createElement('div');
                 childrenDiv.className = 'children hidden';
-                
+
                 index.fields.forEach((fieldName, idx) => {
                     childrenDiv.appendChild(createIndexFieldNode(fieldName, idx + 1));
                 });
-                
+
                 div.appendChild(childrenDiv);
-                
-                content.addEventListener('click', () => {
-                    childrenDiv.classList.toggle('hidden');
-                    const icon = content.querySelector('.expand-icon');
-                    if (childrenDiv.classList.contains('hidden')) {
-                        icon.className = 'expand-icon codicon codicon-chevron-right';
-                    } else {
-                        icon.className = 'expand-icon codicon codicon-chevron-down';
-                    }
+
+                content.addEventListener('click', (e) => {
+                    toggleNode(e, childrenDiv, content.querySelector('.expand-icon'));
                 });
             }
-            
+
             return div;
         }
-        
+
         function createIndexFieldNode(fieldName, position) {
             const div = document.createElement('div');
             div.className = 'tree-item';
-            
+
             const content = document.createElement('div');
             content.className = 'tree-item-content';
             content.innerHTML = `
@@ -814,15 +845,15 @@
                 <span class="label">${escapeHtml(fieldName)}</span>
                 <span class="description">Position ${position}</span>
             `;
-            
+
             div.appendChild(content);
             return div;
         }
-        
+
         function createDetailNode(label, value) {
             const div = document.createElement('div');
             div.className = 'tree-item';
-            
+
             const content = document.createElement('div');
             content.className = 'tree-item-content';
             content.innerHTML = `
@@ -830,7 +861,7 @@
                 <span class="label">${escapeHtml(label)}</span>
                 <span class="description">${escapeHtml(String(value))}</span>
             `;
-            
+
             div.appendChild(content);
             return div;
         }
@@ -840,7 +871,46 @@
             div.textContent = text;
             return div.innerHTML;
         }
-        
+
+        function highlightText(text) {
+            if (!searchPattern) return escapeHtml(text);
+
+            let regexStr;
+            if (useWildcard) {
+                let pat = searchPattern;
+                const specialChars = ['.', '+', '^', '$', '{', '}', '(', ')', '|', '[', ']', '\\'];
+                specialChars.forEach(char => {
+                    pat = pat.split(char).join('\\' + char);
+                });
+                regexStr = pat.replace(/\*/g, '.*').replace(/\?/g, '.');
+            } else {
+                regexStr = searchPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            let regex;
+            try {
+                regex = new RegExp(regexStr, caseSensitive ? 'g' : 'gi');
+            } catch {
+                return escapeHtml(text);
+            }
+
+            const parts = [];
+            let lastIndex = 0;
+            let match;
+            while ((match = regex.exec(text)) !== null) {
+                if (match.index > lastIndex) {
+                    parts.push(escapeHtml(text.slice(lastIndex, match.index)));
+                }
+                parts.push('<span class="search-highlight">' + escapeHtml(match[0]) + '</span>');
+                lastIndex = match.index + match[0].length;
+                if (match[0].length === 0) { regex.lastIndex++; }
+            }
+            if (lastIndex < text.length) {
+                parts.push(escapeHtml(text.slice(lastIndex)));
+            }
+            return parts.join('');
+        }
+
         function showLoading() {
             const container = document.getElementById('treeContainer');
             container.innerHTML = '<div class="loading">Loading schema...</div>';
