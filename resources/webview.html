@@ -415,7 +415,30 @@
                 contextMenu.appendChild(copyJsonItem);
             }
 
+            // "Open Records Grid" only for table nodes
+            if (hasTableIcon) {
+                const openGridItem = document.createElement('div');
+                openGridItem.className = 'context-menu-item';
+                openGridItem.innerHTML = '<span class="codicon codicon-table"></span>Open Records Grid';
+                openGridItem.addEventListener('click', () => {
+                    openTableRecords(contextMenuTarget);
+                    hideContextMenu();
+                });
+                contextMenu.appendChild(openGridItem);
+            }
+
             document.body.appendChild(contextMenu);
+
+            // Flip upward / leftward if the menu would overflow the viewport
+            const menuRect = contextMenu.getBoundingClientRect();
+            const vw = document.documentElement.clientWidth;
+            const vh = document.documentElement.clientHeight;
+            if (menuRect.bottom > vh) {
+                contextMenu.style.top  = Math.max(0, y - menuRect.height) + 'px';
+            }
+            if (menuRect.right > vw) {
+                contextMenu.style.left = Math.max(0, x - menuRect.width) + 'px';
+            }
         }
 
         function copyNodeName(node) {
@@ -423,6 +446,22 @@
             const label = content && content.querySelector('.label');
             const name = label ? label.textContent.trim() : '';
             vscode.postMessage({ type: 'copyName', name });
+        }
+
+        function openTableRecords(node) {
+            const content = node.querySelector('.tree-item-content');
+            const label = content && content.querySelector('.label');
+            const tableName = label ? label.textContent.trim() : '';
+
+            // Walk up to find the parent database node
+            let dbNode = node.parentElement;
+            while (dbNode && !dbNode.querySelector(':scope > .tree-item-content .codicon-database')) {
+                dbNode = dbNode.parentElement;
+            }
+            const dbContent = dbNode && dbNode.querySelector(':scope > .tree-item-content .label');
+            const databaseName = dbContent ? dbContent.textContent.trim() : '';
+
+            vscode.postMessage({ type: 'openRecordsGrid', tableName, databaseName });
         }
 
         function hideContextMenu() {

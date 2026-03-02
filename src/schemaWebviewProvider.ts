@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SchemaManager, SchemaData } from './schemaManager';
+import { RecordsWebviewPanel } from './recordsWebviewPanel';
 
 export class SchemaWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'openedge-db-schema.schemaView';
@@ -52,6 +53,13 @@ export class SchemaWebviewProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'save':
                     vscode.commands.executeCommand('openedge-db-schema.dumpSchema');
+                    break;
+                case 'openRecordsGrid':
+                    RecordsWebviewPanel.open(
+                        this._extensionUri,
+                        data.databaseName ?? '',
+                        data.tableName    ?? '',
+                    );
                     break;
             }
         });

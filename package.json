@@ -35,6 +35,11 @@
         "command": "openedge-db-schema.dumpSchema",
         "title": "Dump Schema to File",
         "icon": "$(save)"
+      },
+      {
+        "command": "openedge-db-schema.openRecordsGrid",
+        "title": "Open Records Grid",
+        "icon": "$(table)"
       }
     ],
     "views": {
@@ -51,6 +56,16 @@
     "menus": {
       "view/title": [
       ]
+    },
+    "configuration": {
+      "title": "OpenEdge DB Schema",
+      "properties": {
+        "openedge-db-schema.records.converterProcedure": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path to an ABL procedure used to convert column values when fetching records. The procedure must have the signature: INPUT p_table AS CHARACTER, INPUT p_column AS CHARACTER, INPUT p_datatype AS CHARACTER, INPUT p_value AS CHARACTER, OUTPUT p_result AS CHARACTER."
+        }
+      }
     }
   },
   "scripts": {

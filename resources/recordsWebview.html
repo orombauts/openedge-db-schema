@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src {{cspSource}} 'unsafe-inline'; script-src 'nonce-{{nonce}}';">
+    <title>{{databaseName}}.{{tableName}} — Records</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            font-family: var(--vscode-font-family);
+            font-size: var(--vscode-font-size);
+            color: var(--vscode-foreground);
+            background: var(--vscode-editor-background);
+        }
+
+        /* ── Toolbar ─────────────────────────────────────────── */
+        .toolbar {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 8px 10px;
+            background: var(--vscode-sideBar-background);
+            border-bottom: 1px solid var(--vscode-panel-border);
+        }
+
+        .toolbar-title {
+            font-weight: 600;
+            white-space: nowrap;
+            margin-right: 4px;
+            color: var(--vscode-foreground);
+        }
+
+        .toolbar-sep {
+            flex: 1;
+        }
+
+        .where-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex: 1;
+            min-width: 220px;
+        }
+
+        .where-label {
+            white-space: nowrap;
+            color: var(--vscode-descriptionForeground);
+            font-size: 0.9em;
+        }
+
+        input[type="text"], input[type="number"] {
+            padding: 3px 6px;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border, transparent);
+            outline: none;
+            font-family: inherit;
+            font-size: inherit;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus {
+            border-color: var(--vscode-focusBorder);
+        }
+
+        #whereInput {
+            flex: 1;
+            font-family: var(--vscode-editor-font-family, monospace);
+        }
+
+        #limitInput {
+            width: 62px;
+        }
+
+        .btn {
+            padding: 3px 10px;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: inherit;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
+        .btn-primary:hover { background: var(--vscode-button-hoverBackground); }
+
+        .btn-secondary {
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border: 1px solid var(--vscode-button-border, transparent);
+        }
+        .btn-secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* ── Status bar ──────────────────────────────────────── */
+        .statusbar {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 3px 10px;
+            font-size: 0.85em;
+            background: var(--vscode-statusBar-background, var(--vscode-sideBar-background));
+            color: var(--vscode-statusBar-foreground, var(--vscode-descriptionForeground));
+            border-bottom: 1px solid var(--vscode-panel-border);
+        }
+
+        .statusbar-spacer { flex: 1; }
+
+        .btn-page {
+            padding: 1px 7px;
+            font-size: 0.85em;
+            background: transparent;
+            color: var(--vscode-button-secondaryForeground);
+            border: 1px solid var(--vscode-button-border, var(--vscode-panel-border));
+            cursor: pointer;
+        }
+        .btn-page:hover:not(:disabled) { background: var(--vscode-button-secondaryHoverBackground); }
+        .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Grid container ──────────────────────────────────── */
+        .grid-wrapper {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        /* Loading overlay */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--vscode-editor-background);
+            opacity: 0.85;
+            z-index: 10;
+            font-size: 1.1em;
+            color: var(--vscode-descriptionForeground);
+        }
+        .overlay.hidden { display: none; }
+
+        .message-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--vscode-descriptionForeground);
+            font-size: 1.05em;
+        }
+
+        .error-box {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 20px;
+            height: 100%;
+            color: var(--vscode-errorForeground);
+            white-space: pre-wrap;
+            font-family: var(--vscode-editor-font-family, monospace);
+            font-size: 0.9em;
+        }
+
+        /* ── Data table ──────────────────────────────────────── */
+        table {
+            border-collapse: collapse;
+            width: max-content;
+            min-width: 100%;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        th {
+            background: var(--vscode-sideBarSectionHeader-background, var(--vscode-editor-background));
+            color: var(--vscode-sideBarTitle-foreground, var(--vscode-foreground));
+            font-weight: 600;
+            text-align: left;
+            padding: 5px 10px;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--vscode-panel-border);
+            border-right: 1px solid var(--vscode-panel-border);
+            user-select: none;
+        }
+
+        th .col-type {
+            font-weight: 400;
+            font-size: 0.8em;
+            color: var(--vscode-descriptionForeground);
+            margin-left: 4px;
+        }
+
+        td {
+            padding: 3px 10px;
+            white-space: nowrap;
+            max-width: 320px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-right: 1px solid var(--vscode-panel-border);
+            border-bottom: 1px solid var(--vscode-list-inactiveSelectionBackground, rgba(128,128,128,0.1));
+            vertical-align: middle;
+        }
+
+        td.null-val {
+            color: var(--vscode-descriptionForeground);
+            font-style: italic;
+        }
+
+        tbody tr:hover td {
+            background: var(--vscode-list-hoverBackground);
+        }
+
+        tbody tr:nth-child(even) td {
+            background: var(--vscode-list-inactiveSelectionBackground, rgba(128,128,128,0.05));
+        }
+
+        tbody tr:nth-child(even):hover td {
+            background: var(--vscode-list-hoverBackground);
+        }
+
+        /* Row number column */
+        .row-num {
+            color: var(--vscode-descriptionForeground);
+            font-size: 0.8em;
+            text-align: right;
+            min-width: 42px;
+            padding-right: 8px;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Toolbar ───────────────────────────────────────────────── -->
+    <div class="toolbar">
+        <span class="toolbar-title" id="tableTitle">{{databaseName}}.{{tableName}}</span>
+
+        <div class="where-group">
+            <span class="where-label">WHERE</span>
+            <input type="text" id="whereInput" placeholder="e.g. custno > 100" title="OpenEdge WHERE clause (without the WHERE keyword)" />
+        </div>
+
+        <div style="display:flex;align-items:center;gap:4px;">
+            <span class="where-label">Limit</span>
+            <input type="number" id="limitInput" value="100" min="1" max="10000" title="Max rows to fetch" />
+        </div>
+
+        <button class="btn btn-primary" id="applyBtn">Apply</button>
+        <button class="btn btn-secondary" id="clearBtn">Clear</button>
+    </div>
+
+    <!-- ── Status bar ────────────────────────────────────────────── -->
+    <div class="statusbar">
+        <span id="statusText">Ready</span>
+        <span class="statusbar-spacer"></span>
+        <button class="btn-page" id="prevBtn" disabled>&#8592; Prev</button>
+        <span id="pageInfo"></span>
+        <button class="btn-page" id="nextBtn" disabled>Next &#8594;</button>
+    </div>
+
+    <!-- ── Grid ──────────────────────────────────────────────────── -->
+    <div class="grid-wrapper" id="gridWrapper">
+        <div class="overlay hidden" id="loadingOverlay">Loading…</div>
+        <div class="message-box" id="messageBox">
+            Enter a WHERE clause (optional) and press <strong style="margin:0 4px;">Apply</strong> to fetch records.
+        </div>
+    </div>
+
+    <script nonce="{{nonce}}">
+        const vscode = acquireVsCodeApi();
+
+        // ── State ───────────────────────────────────────────────────────
+        const TABLE_NAME    = '{{tableName}}';
+        const DATABASE_NAME = '{{databaseName}}';
+
+        let currentOffset = 0;
+        let currentLimit  = 100;
+        let lastHasMore   = false;
+        let lastFetched   = 0;
+
+        // ── DOM refs ────────────────────────────────────────────────────
+        const whereInput     = document.getElementById('whereInput');
+        const limitInput     = document.getElementById('limitInput');
+        const applyBtn       = document.getElementById('applyBtn');
+        const clearBtn       = document.getElementById('clearBtn');
+        const prevBtn        = document.getElementById('prevBtn');
+        const nextBtn        = document.getElementById('nextBtn');
+        const statusText     = document.getElementById('statusText');
+        const pageInfo       = document.getElementById('pageInfo');
+        const gridWrapper    = document.getElementById('gridWrapper');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const messageBox     = document.getElementById('messageBox');
+
+        // ── Event listeners ─────────────────────────────────────────────
+        applyBtn.addEventListener('click', () => {
+            currentOffset = 0;
+            fetchRecords();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            whereInput.value  = '';
+            currentOffset     = 0;
+            fetchRecords();
+        });
+
+        prevBtn.addEventListener('click', () => {
+            currentOffset = Math.max(0, currentOffset - currentLimit);
+            fetchRecords();
+        });
+
+        nextBtn.addEventListener('click', () => {
+            currentOffset = currentOffset + lastFetched;
+            fetchRecords();
+        });
+
+        whereInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { currentOffset = 0; fetchRecords(); }
+        });
+
+        // ── Extension messaging ──────────────────────────────────────────
+        function fetchRecords() {
+            currentLimit = parseInt(limitInput.value, 10) || 100;
+            showLoading();
+            vscode.postMessage({
+                type:         'fetchRecords',
+                tableName:    TABLE_NAME,
+                databaseName: DATABASE_NAME,
+                whereClause:  whereInput.value.trim(),
+                limit:        currentLimit,
+                offset:       currentOffset,
+            });
+        }
+
+        window.addEventListener('message', (event) => {
+            const msg = event.data;
+            if (msg.type === 'loading') {
+                showLoading();
+            } else if (msg.type === 'recordsData') {
+                hideLoading();
+                renderResult(msg.data);
+            }
+        });
+
+        // ── Render ───────────────────────────────────────────────────────
+        function renderResult(data) {
+            if (data.error) {
+                showError(data.error);
+                setStatus('Error');
+                updatePagination(false, false);
+                return;
+            }
+
+            const { columns = [], rows = [], totalFetched = 0, hasMore = false, offset = 0, limit = 100 } = data;
+
+            lastHasMore  = hasMore;
+            lastFetched  = totalFetched;
+            currentOffset = offset;
+
+            if (columns.length === 0 && rows.length === 0) {
+                showMessage('No records found.');
+                setStatus('0 rows');
+                updatePagination(false, false);
+                return;
+            }
+
+            // Build table
+            const tbl  = document.createElement('table');
+            const head = document.createElement('thead');
+            const body = document.createElement('tbody');
+
+            // Header row
+            const headRow = document.createElement('tr');
+            // Row number header
+            const thNum = document.createElement('th');
+            thNum.className = 'row-num';
+            thNum.textContent = '#';
+            headRow.appendChild(thNum);
+
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.innerHTML = escapeHtml(col.name)
+                    + '<span class="col-type">' + escapeHtml(col.type) + '</span>';
+                headRow.appendChild(th);
+            });
+            head.appendChild(headRow);
+
+            // Data rows
+            rows.forEach((row, rowIdx) => {
+                const tr = document.createElement('tr');
+                // Row number cell
+                const tdNum = document.createElement('td');
+                tdNum.className = 'row-num';
+                tdNum.textContent = String(offset + rowIdx + 1);
+                tr.appendChild(tdNum);
+
+                row.forEach(val => {
+                    const td = document.createElement('td');
+                    if (val === '' || val === null || val === undefined) {
+                        td.textContent = '';
+                        td.className = 'null-val';
+                    } else {
+                        td.textContent = val;
+                        td.title = val; // tooltip for truncated values
+                    }
+                    tr.appendChild(td);
+                });
+                body.appendChild(tr);
+            });
+
+            tbl.appendChild(head);
+            tbl.appendChild(body);
+
+            // Replace grid content
+            clearGrid();
+            gridWrapper.appendChild(tbl);
+
+            // Status
+            const from = offset + 1;
+            const to   = offset + totalFetched;
+            setStatus(totalFetched === 0 ? '0 rows' : `Rows ${from}–${to}${hasMore ? '+' : ''}`);
+            updatePagination(offset > 0, hasMore);
+            const page = Math.floor(offset / limit) + 1;
+            pageInfo.textContent = `Page ${page}`;
+        }
+
+        // ── Helpers ──────────────────────────────────────────────────────
+        function showLoading() {
+            clearGrid();
+            loadingOverlay.classList.remove('hidden');
+            applyBtn.disabled = true;
+            clearBtn.disabled = true;
+        }
+
+        function hideLoading() {
+            loadingOverlay.classList.add('hidden');
+            applyBtn.disabled = false;
+            clearBtn.disabled = false;
+        }
+
+        function showMessage(text) {
+            clearGrid();
+            const box = document.createElement('div');
+            box.className = 'message-box';
+            box.textContent = text;
+            gridWrapper.appendChild(box);
+        }
+
+        function showError(msg) {
+            clearGrid();
+            const box = document.createElement('div');
+            box.className = 'error-box';
+            box.textContent = msg;
+            gridWrapper.appendChild(box);
+        }
+
+        function clearGrid() {
+            // Keep the overlay, remove everything else
+            Array.from(gridWrapper.children).forEach(child => {
+                if (child !== loadingOverlay) child.remove();
+            });
+        }
+
+        function setStatus(text) {
+            statusText.textContent = text;
+        }
+
+        function updatePagination(hasPrev, hasNext) {
+            prevBtn.disabled = !hasPrev;
+            nextBtn.disabled = !hasNext;
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

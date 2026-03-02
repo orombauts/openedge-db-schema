@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { SchemaWebviewProvider } from './schemaWebviewProvider';
 import { SchemaManager } from './schemaManager';
 import { getOpenEdgeSchema } from './schemaService';
+import { RecordsWebviewPanel } from './recordsWebviewPanel';
 import { log } from './logger';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -9,7 +10,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Get the OpenEdge ABL extension
     const ablExtension = vscode.extensions.getExtension('RiversideSoftware.openedge-abl-lsp');
-    
+
     if (!ablExtension) {
         log('OpenEdge ABL extension not found - commands will check at runtime');
     }
@@ -19,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Create webview provider (view layer)
     const schemaWebviewProvider = new SchemaWebviewProvider(context.extensionUri, schemaManager);
-    
+
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(
             SchemaWebviewProvider.viewType,
@@ -50,7 +51,23 @@ export function activate(context: vscode.ExtensionContext) {
         await getOpenEdgeSchema(ablExtension, schemaManager, true);
     });
 
-    context.subscriptions.push(disposable, refreshDisposable, dumpDisposable, schemaManager);
+    // Register command to open the records grid panel for a given database + table
+    let recordsGridDisposable = vscode.commands.registerCommand(
+        'openedge-db-schema.openRecordsGrid',
+        (args: { databaseName: string; tableName: string }) => {
+            if (!args?.tableName) {
+                vscode.window.showErrorMessage('openRecordsGrid: tableName is required.');
+                return;
+            }
+            RecordsWebviewPanel.open(
+                context.extensionUri,
+                args.databaseName ?? '',
+                args.tableName,
+            );
+        },
+    );
+
+    context.subscriptions.push(disposable, refreshDisposable, dumpDisposable, recordsGridDisposable, schemaManager);
 }
 
 export function deactivate() {}
