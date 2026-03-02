@@ -203,10 +203,10 @@
         }
 
         th .col-type {
+            display: block;
             font-weight: 400;
             font-size: 0.8em;
             color: var(--vscode-descriptionForeground);
-            margin-left: 4px;
         }
 
         td {
@@ -246,6 +246,34 @@
             padding-right: 8px;
             user-select: none;
         }
+
+        /* Checkbox column */
+        .row-check {
+            width: 28px;
+            text-align: center;
+            padding: 0 6px;
+            user-select: none;
+            border-right: 1px solid var(--vscode-panel-border);
+        }
+
+        .row-check input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: var(--vscode-focusBorder);
+            width: 13px;
+            height: 13px;
+            vertical-align: middle;
+        }
+
+        /* Selected row */
+        tbody tr.selected td {
+            background: var(--vscode-list-activeSelectionBackground) !important;
+            color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
+        }
+
+        tbody tr.selected td.null-val {
+            color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -266,6 +294,8 @@
 
         <button class="btn btn-primary" id="applyBtn">Apply</button>
         <button class="btn btn-secondary" id="clearBtn">Clear</button>
+        <button class="btn btn-secondary" id="copyTsvBtn" disabled title="Copy selected rows as TSV">Copy TSV</button>
+        <span id="selectionLabel" style="font-size:0.85em;color:var(--vscode-descriptionForeground);white-space:nowrap;"></span>
     </div>
 
     <!-- ── Status bar ────────────────────────────────────────────── -->
@@ -292,16 +322,22 @@
         const TABLE_NAME    = '{{tableName}}';
         const DATABASE_NAME = '{{databaseName}}';
 
-        let currentOffset = 0;
-        let currentLimit  = 100;
-        let lastHasMore   = false;
-        let lastFetched   = 0;
+        let currentOffset  = 0;
+        let currentLimit   = 100;
+        let lastHasMore    = false;
+        let lastFetched    = 0;
+        let currentColumns = [];
+        let currentRows    = [];
+        let selectedIndices = new Set();
+        let lastCheckedIdx  = null;
 
         // ── DOM refs ────────────────────────────────────────────────────
         const whereInput     = document.getElementById('whereInput');
         const limitInput     = document.getElementById('limitInput');
         const applyBtn       = document.getElementById('applyBtn');
         const clearBtn       = document.getElementById('clearBtn');
+        const copyTsvBtn     = document.getElementById('copyTsvBtn');
+        const selectionLabel = document.getElementById('selectionLabel');
         const prevBtn        = document.getElementById('prevBtn');
         const nextBtn        = document.getElementById('nextBtn');
         const statusText     = document.getElementById('statusText');
@@ -335,6 +371,8 @@
         whereInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') { currentOffset = 0; fetchRecords(); }
         });
+
+        copyTsvBtn.addEventListener('click', copyTsv);
 
         // ── Extension messaging ──────────────────────────────────────────
         function fetchRecords() {
@@ -371,9 +409,14 @@
 
             const { columns = [], rows = [], totalFetched = 0, hasMore = false, offset = 0, limit = 100 } = data;
 
-            lastHasMore  = hasMore;
-            lastFetched  = totalFetched;
+            lastHasMore   = hasMore;
+            lastFetched   = totalFetched;
             currentOffset = offset;
+            currentColumns = columns;
+            currentRows    = rows;
+            selectedIndices.clear();
+            lastCheckedIdx = null;
+            updateSelectionUi();
 
             if (columns.length === 0 && rows.length === 0) {
                 showMessage('No records found.');
@@ -389,6 +432,26 @@
 
             // Header row
             const headRow = document.createElement('tr');
+
+            // Select-all checkbox header
+            const thCheck = document.createElement('th');
+            thCheck.className = 'row-check';
+            const checkAll = document.createElement('input');
+            checkAll.type  = 'checkbox';
+            checkAll.title = 'Select / deselect all';
+            checkAll.addEventListener('change', () => {
+                const allCbs = body.querySelectorAll('input[type="checkbox"]');
+                allCbs.forEach((cb, i) => {
+                    cb.checked = checkAll.checked;
+                    cb.closest('tr').classList.toggle('selected', checkAll.checked);
+                    if (checkAll.checked) selectedIndices.add(i); else selectedIndices.delete(i);
+                });
+                lastCheckedIdx = null;
+                updateSelectionUi();
+            });
+            thCheck.appendChild(checkAll);
+            headRow.appendChild(thCheck);
+
             // Row number header
             const thNum = document.createElement('th');
             thNum.className = 'row-num';
@@ -406,6 +469,37 @@
             // Data rows
             rows.forEach((row, rowIdx) => {
                 const tr = document.createElement('tr');
+
+                // Checkbox cell
+                const tdCheck = document.createElement('td');
+                tdCheck.className = 'row-check';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.addEventListener('change', (e) => {
+                    if (e.shiftKey && lastCheckedIdx !== null) {
+                        const lo = Math.min(lastCheckedIdx, rowIdx);
+                        const hi = Math.max(lastCheckedIdx, rowIdx);
+                        const allCbs = body.querySelectorAll('input[type="checkbox"]');
+                        for (let i = lo; i <= hi; i++) {
+                            allCbs[i].checked = cb.checked;
+                            allCbs[i].closest('tr').classList.toggle('selected', cb.checked);
+                            if (cb.checked) selectedIndices.add(i); else selectedIndices.delete(i);
+                        }
+                    } else {
+                        tr.classList.toggle('selected', cb.checked);
+                        if (cb.checked) selectedIndices.add(rowIdx); else selectedIndices.delete(rowIdx);
+                    }
+                    lastCheckedIdx = rowIdx;
+                    // Sync select-all state
+                    const allCbs = body.querySelectorAll('input[type="checkbox"]');
+                    const checkedCount = body.querySelectorAll('input[type="checkbox"]:checked').length;
+                    checkAll.indeterminate = checkedCount > 0 && checkedCount < allCbs.length;
+                    checkAll.checked = checkedCount === allCbs.length && allCbs.length > 0;
+                    updateSelectionUi();
+                });
+                tdCheck.appendChild(cb);
+                tr.appendChild(tdCheck);
+
                 // Row number cell
                 const tdNum = document.createElement('td');
                 tdNum.className = 'row-num';
@@ -414,12 +508,13 @@
 
                 row.forEach(val => {
                     const td = document.createElement('td');
-                    if (val === '' || val === null || val === undefined) {
-                        td.textContent = '';
+                    if (val === null || val === undefined) {
+                        td.textContent = '?';
                         td.className = 'null-val';
+                        td.title = 'Unknown value (?)';
                     } else {
                         td.textContent = val;
-                        td.title = val; // tooltip for truncated values
+                        if (val !== '') td.title = val; // tooltip for truncated values
                     }
                     tr.appendChild(td);
                 });
@@ -494,6 +589,29 @@
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;');
+        }
+
+        // ── Selection & copy ─────────────────────────────────────────────
+        function updateSelectionUi() {
+            const count = selectedIndices.size;
+            copyTsvBtn.disabled = count === 0;
+            selectionLabel.textContent = count > 0 ? `${count} row${count === 1 ? '' : 's'} selected` : '';
+        }
+
+        function copyTsv() {
+            if (selectedIndices.size === 0) return;
+            const header = currentColumns.map(c => tsvEscape(c.name)).join('\t');
+            const lines  = [...selectedIndices].sort((a, b) => a - b).map(i => {
+                return currentRows[i].map(val =>
+                    val === null || val === undefined ? '?' : tsvEscape(String(val))
+                ).join('\t');
+            });
+            navigator.clipboard.writeText([header, ...lines].join('\n'));
+        }
+
+        function tsvEscape(val) {
+            // Tabs and newlines in values are replaced to keep TSV valid
+            return val.replace(/\t/g, '    ').replace(/\r?\n/g, ' ');
         }
     </script>
 </body>

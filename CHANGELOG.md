@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.0] - 2026-03-02
+
+### Added
+- Records grid: right-click a table node to open a panel showing its live records fetched from the database
+- New `fetch_table_records.p` ABL procedure to query table data via the OpenEdge ABL extension
+- Records panel with paginated grid and column resizing
+- Optional `openedge-db-schema.records.converterProcedure` setting: path to a custom ABL procedure that converts column values when fetching records
+- Unknown field values (OpenEdge `?`) are preserved as JSON `null` and displayed as a muted italic `?` in the grid, distinct from an empty string
+- Multi-row selection in the records grid: checkbox column with select-all header, shift-click range select, and a **Copy TSV** toolbar button that copies selected rows (with column headers) to the clipboard
+- Column data type shown on a second line in the header to allow more columns to fit in the view
+
 ## [1.2.0] - 2026-02-20
 
 ### Added

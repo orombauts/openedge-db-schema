@@ -21,6 +21,7 @@ You can find the OpenEdge ABL extension in the VS Code Marketplace:
 - Browse databases, tables, fields, and indexes hierarchically
 - View detailed field information (extent, label, format, initial value)
 - **Right-click context menu** on any node: copy the node name or copy database/table definitions as JSON
+- **View table records**: right-click a table node and select "View Records" to open an interactive records grid with live data fetched from the database
 - Loading indicator for schema refresh operations
 - Save schema to `.openedge-db-schema/schema.json` in the workspace
 
@@ -68,6 +69,38 @@ Right-click on any database, table, field, or index node to access the context m
 - **Copy JSON**: Copies the full database or table definition as formatted JSON (available on database and table nodes only)
 
 The JSON structure matches the OpenEdge ABL extension schema format, making it easy to share schema definitions.
+
+### View Table Records
+
+Right-click on a table node and select **View Records** to open the records panel:
+- Fetches live data from the connected OpenEdge database using the ABL extension
+- Displays records in a paginated grid with column resizing
+- Column names and data types are shown in the header (type on a second line to maximise visible columns)
+- Unknown values (OpenEdge `?`) are shown as a muted italic `?`, distinct from an empty string
+- **Multi-row selection**: use the checkbox column to select individual rows; hold **Shift** to select a range; use the header checkbox to select or deselect all rows on the current page
+- **Copy TSV**: once rows are selected, the toolbar shows a **Copy TSV** button that copies the selected rows — including a column header row — as tab-separated values, ready to paste into a spreadsheet
+
+#### Custom Column Converter
+
+You can provide an optional ABL procedure to transform column values before they are displayed. Set the path in your VS Code settings:
+
+```json
+"openedge-db-schema.records.converterProcedure": "path/to/your/converter.p"
+```
+
+The procedure must have the following signature:
+
+```openedge
+PROCEDURE converter:
+    DEFINE INPUT  PARAMETER p_table    AS CHARACTER NO-UNDO.
+    DEFINE INPUT  PARAMETER p_column   AS CHARACTER NO-UNDO.
+    DEFINE INPUT  PARAMETER p_datatype AS CHARACTER NO-UNDO.
+    DEFINE INPUT  PARAMETER p_value    AS CHARACTER NO-UNDO.
+    DEFINE OUTPUT PARAMETER p_result   AS CHARACTER NO-UNDO.
+END PROCEDURE.
+```
+
+When the setting is empty (default), values are displayed as-is.
 
 ## Development
 
