@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.1] - 2026-03-23
+
+### Fixed
+- Records grid: fixed display issues caused by incorrect JSON string escaping in field values — now fully compliant with RFC 8259
+
 ## [1.3.0] - 2026-03-02
 
 ### Added
