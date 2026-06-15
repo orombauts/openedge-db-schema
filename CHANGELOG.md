@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.4.0] - 2026-06-15
+
+### Added
+- New `openedge-db-schema.records.dbConnectionProfiles` setting: a named connection profile array that controls both how `_progres` is connected when fetching table records and how the database is presented in the schema tree. Each profile supports three connection modes (in priority order):
+  - `connectParts` + optional `extraArgs`: an ordered list of `dbConnections` entry names from `openedge-project.json` whose connect strings are concatenated to build the full connect arguments; `extraArgs` appends additional raw flags (e.g. credentials, tuning parameters). Designed for Progress MSSQL DataServer setups where a schema holder and a DataServer connection must both be started together.
+  - `pf`: absolute path to a `.pf` parameter file, passed to `_progres` as `-pf <path>`
+  - `connectString`: a raw connect flags string used as-is
+- Schema view collapsing: when a profile uses `connectParts`, the referenced `dbConnections` entries are automatically hidden in the schema tree and replaced by a single node named after the profile's `database` value — eliminating the duplicate table listings that occur when a Progress MSSQL DataServer schema holder and its data-source connection both expose the same table catalog
+- The profile's `database` name is a free-form display label; it does not need to match any entry in `openedge-project.json`
+- Auto-load schema with exponential back-off retry on extension activation; retries automatically when the OpenEdge ABL extension activates late
+- Auto-load re-triggers when the schema view becomes visible and no schema is loaded yet
+
+### Fixed
+- Records fetch: `-db` tokens that are logical DataServer names (e.g. `mwdb`) are no longer incorrectly resolved as filesystem paths — only tokens that contain a path separator or end with `.db` are resolved against the filesystem
+- Records fetch: relative `-db` paths in `openedge-project.json` are now resolved relative to the directory containing that file, rather than `workspaceFolders[0]`
+
+
 ## [1.3.1] - 2026-03-23
 
 ### Fixed

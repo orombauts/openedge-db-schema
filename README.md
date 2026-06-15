@@ -80,6 +80,32 @@ Right-click on a table node and select **View Records** to open the records pane
 - **Multi-row selection**: use the checkbox column to select individual rows; hold **Shift** to select a range; use the header checkbox to select or deselect all rows on the current page
 - **Copy TSV**: once rows are selected, the toolbar shows a **Copy TSV** button that copies the selected rows — including a column header row — as tab-separated values, ready to paste into a spreadsheet
 
+#### Database Connection Profiles
+
+The extension reads database connection details from `openedge-project.json` automatically. For cases where the default connection is insufficient — such as Progress MSSQL DataServer setups that require a schema holder and a DataServer connection to be started together, or connections that need credentials not stored in the project file — you can define named connection profiles in your VS Code settings:
+
+```json
+"openedge-db-schema.records.dbConnectionProfiles": [
+    {
+        "database": "mwdb",
+        "connectParts": ["mwdb_sh", "mwdb"],
+        "extraArgs": "-U <username> -P <password> -c 8196 -Dsrv SKIP_SCHEMA_CHECK"
+    }
+]
+```
+
+Each profile entry supports the following properties:
+
+| Property | Description |
+|---|---|
+| `database` | Arbitrary display name for the profile. This is the name shown in the schema tree and used to open the records grid. |
+| `connectParts` | Ordered list of `dbConnections` names from `openedge-project.json` whose connect strings are concatenated. **The schema holder must appear first.** |
+| `extraArgs` | Additional raw connect flags appended after the expanded `connectParts`, e.g. credentials and tuning flags. Only used when `connectParts` is set. |
+| `pf` | Absolute path to a `.pf` parameter file. Passed to `_progres` as `-pf <path>`. Takes precedence over `connectParts` and `connectString`. |
+| `connectString` | Raw connect flags string. Used when neither `pf` nor `connectParts` is set. |
+
+**View collapsing**: when a profile specifies `connectParts`, the referenced database entries are automatically hidden in the schema tree and replaced by a single node named after the profile's `database` value. This prevents duplicate entries when a Progress MSSQL DataServer schema holder (`mwdb_sh`) and its data-source connection (`mwdb`) both expose the same table catalog.
+
 #### Custom Column Converter
 
 You can provide an optional ABL procedure to transform column values before they are displayed. Set the path in your VS Code settings:
