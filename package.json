@@ -64,6 +64,30 @@
           "type": "string",
           "default": "",
           "description": "Optional path to an ABL procedure used to convert column values when fetching records. The procedure must have the signature: INPUT p_table AS CHARACTER, INPUT p_column AS CHARACTER, INPUT p_datatype AS CHARACTER, INPUT p_value AS CHARACTER, OUTPUT p_result AS CHARACTER."
+        },
+        "openedge-db-schema.records.dbConnectionOverrides": {
+          "type": "array",
+          "scope": "resource",
+          "default": [],
+          "description": "Per-database connection overrides used when running fetch_table_records.p. Each entry must specify 'database' (matching the name in openedge-project.json) and either 'pf' (path to a .pf parameter file, passed as -pf) or 'connectString' (raw connect flags, e.g. -db mydb -H localhost -S 3000). When both are provided, 'pf' takes precedence. A matched entry replaces the connection derived from openedge-project.json.",
+          "items": {
+            "type": "object",
+            "required": ["database"],
+            "properties": {
+              "database": {
+                "type": "string",
+                "description": "Database name as declared in openedge-project.json dbConnections."
+              },
+              "pf": {
+                "type": "string",
+                "description": "Absolute path to a .pf parameter file. Passed to _progres as -pf <path>."
+              },
+              "connectString": {
+                "type": "string",
+                "description": "Raw connect string flags, e.g. '-db mydb -H localhost -S 3000'. Used when 'pf' is not set."
+              }
+            }
+          }
         }
       }
     }

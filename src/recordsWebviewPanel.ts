@@ -165,7 +165,8 @@ export class RecordsWebviewPanel {
         const ablExe  = path.join(runtime.path, 'bin', exeName);
 
         // ── Database from openedge-project.json in workspace root ────────
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspaceRoot = workspaceFolder?.uri.fsPath ?? '';
         const projectFile   = path.join(workspaceRoot, 'openedge-project.json');
 
         if (!fs.existsSync(projectFile)) {
@@ -185,19 +186,32 @@ export class RecordsWebviewPanel {
             );
         }
 
-        // Pick the connection that matches the requested database name, or the first one.
-        const conn = connections.find(c => c.name === this._databaseName) ?? connections[0];
-        if (!conn.connect) {
-            throw new Error(`Connection for "${this._databaseName}" has no connect string.`);
-        }
+        // Check for a user-configured override for this database.
+        const overrides = vscode.workspace
+            .getConfiguration('openedge-db-schema', workspaceFolder?.uri)
+            .get<{ database: string; pf?: string; connectString?: string }[]>('records.dbConnectionOverrides', []);
+        const override = overrides.find(o => o.database === this._databaseName);
 
-        // Split the full connect string into args, resolving relative -db paths.
-        const tokens      = conn.connect.trim().split(/\s+/);
-        const connectArgs = tokens.map((tok, i) =>
-            i > 0 && tokens[i - 1] === '-db' && !path.isAbsolute(tok)
-                ? path.resolve(workspaceRoot, tok)
-                : tok
-        );
+        let connectArgs: string[];
+        if (override?.pf) {
+            connectArgs = ['-pf', override.pf];
+        } else if (override?.connectString) {
+            connectArgs = override.connectString.trim().split(/\s+/);
+        } else {
+            // Pick the connection that matches the requested database name, or the first one.
+            const conn = connections.find(c => c.name === this._databaseName) ?? connections[0];
+            if (!conn.connect) {
+                throw new Error(`Connection for "${this._databaseName}" has no connect string.`);
+            }
+
+            // Split the full connect string into args, resolving relative -db paths.
+            const tokens = conn.connect.trim().split(/\s+/);
+            connectArgs = tokens.map((tok, i) =>
+                i > 0 && tokens[i - 1] === '-db' && !path.isAbsolute(tok)
+                    ? path.resolve(workspaceRoot, tok)
+                    : tok
+            );
+        }
 
         return { ablExe, connectArgs };
     }
