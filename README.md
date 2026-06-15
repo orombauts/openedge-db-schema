@@ -73,7 +73,7 @@ The JSON structure matches the OpenEdge ABL extension schema format, making it e
 ### View Table Records
 
 Right-click on a table node and select **View Records** to open the records panel:
-- Fetches live data from the connected OpenEdge database using the ABL extension
+- Fetches live data from the connected OpenEdge database using the ABL extension. If the default connection derived from `openedge-project.json` is not sufficient (e.g. a Progress MSSQL DataServer setup), see [Database Connection Profiles](#database-connection-profiles) below.
 - Displays records in a paginated grid with column resizing
 - Column names and data types are shown in the header (type on a second line to maximise visible columns)
 - Unknown values (OpenEdge `?`) are shown as a muted italic `?`, distinct from an empty string
@@ -134,6 +134,14 @@ When the setting is empty (default), values are displayed as-is.
 2. Compile: `npm run compile`
 3. Press F5 to launch extension in debug mode
 4. In the launch.json, specify a test workspace path if needed
+
+## Settings Reference
+
+| Setting | Default | Description |
+|---|---|---|
+| `openedge-db-schema.autoLoadSchema` | `true` | Automatically load the database schema when the OpenEdge DB Schema view becomes active. Disable if you prefer to load the schema manually via the Refresh button. |
+| `openedge-db-schema.records.converterProcedure` | _(empty)_ | Path to an optional ABL converter procedure. See [Custom Column Converter](#custom-column-converter). |
+| `openedge-db-schema.records.dbConnectionProfiles` | `[]` | Named connection profiles for record fetching and schema tree collapsing. See [Database Connection Profiles](#database-connection-profiles). |
 
 ## Changelog
 
