@@ -10,7 +10,8 @@ export class SchemaWebviewProvider implements vscode.WebviewViewProvider {
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        private readonly _schemaManager: SchemaManager
+        private readonly _schemaManager: SchemaManager,
+        private readonly _autoLoad?: () => Promise<void>
     ) {
         // Listen for schema changes and update view
         _schemaManager.onSchemaChanged(data => {
@@ -64,14 +65,27 @@ export class SchemaWebviewProvider implements vscode.WebviewViewProvider {
             }
         });
 
-        // Send schema data if already loaded
+        // Send schema data if already loaded, otherwise auto-load
         const schemaData = this._schemaManager.getSchema();
         if (schemaData) {
             // Delay to ensure webview is fully initialized
             setTimeout(() => {
                 webviewView.webview.postMessage({ type: 'schemaData', data: schemaData });
             }, 100);
+        } else if (this._autoLoad && this._isAutoLoadEnabled()) {
+            this._autoLoad();
         }
+
+        // Auto-load when the view becomes visible again and schema is not yet loaded
+        webviewView.onDidChangeVisibility(() => {
+            if (webviewView.visible && !this._schemaManager.getSchema() && this._autoLoad && this._isAutoLoadEnabled()) {
+                this._autoLoad();
+            }
+        });
+    }
+
+    private _isAutoLoadEnabled(): boolean {
+        return vscode.workspace.getConfiguration('openedge-db-schema').get<boolean>('autoLoadSchema', true);
     }
 
     public showLoading(): void {

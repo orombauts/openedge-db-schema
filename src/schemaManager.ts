@@ -32,6 +32,14 @@ interface Index {
     fields: string[];
 }
 
+export interface DbConnectionProfile {
+    database: string;
+    pf?: string;
+    connectString?: string;
+    connectParts?: string[];
+    extraArgs?: string;
+}
+
 export { SchemaData, Database, Table, Field, Index };
 
 export class SchemaManager {

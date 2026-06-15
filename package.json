@@ -60,31 +60,45 @@
     "configuration": {
       "title": "OpenEdge DB Schema",
       "properties": {
+        "openedge-db-schema.autoLoadSchema": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically load the database schema when the OpenEdge DB Schema view becomes active."
+        },
         "openedge-db-schema.records.converterProcedure": {
           "type": "string",
           "default": "",
           "description": "Optional path to an ABL procedure used to convert column values when fetching records. The procedure must have the signature: INPUT p_table AS CHARACTER, INPUT p_column AS CHARACTER, INPUT p_datatype AS CHARACTER, INPUT p_value AS CHARACTER, OUTPUT p_result AS CHARACTER."
         },
-        "openedge-db-schema.records.dbConnectionOverrides": {
+        "openedge-db-schema.records.dbConnectionProfiles": {
           "type": "array",
           "scope": "resource",
           "default": [],
-          "description": "Per-database connection overrides used when running fetch_table_records.p. Each entry must specify 'database' (matching the name in openedge-project.json) and either 'pf' (path to a .pf parameter file, passed as -pf) or 'connectString' (raw connect flags, e.g. -db mydb -H localhost -S 3000). When both are provided, 'pf' takes precedence. A matched entry replaces the connection derived from openedge-project.json.",
+          "description": "Named connection profiles used when running fetch_table_records.p. Each entry must specify 'database' (an arbitrary display name — it does not need to match a dbConnections entry) and one of: 'connectParts' (an ordered list of dbConnections names whose connect strings are concatenated, with an optional 'extraArgs' suffix), 'pf' (path to a .pf parameter file), or 'connectString' (a raw connect flags string). Priority: pf > connectParts > connectString. A profile whose 'database' name does not match any dbConnections entry is only reachable when the view node was created from that profile (e.g. via connectParts view collapsing).",
           "items": {
             "type": "object",
             "required": ["database"],
             "properties": {
               "database": {
                 "type": "string",
-                "description": "Database name as declared in openedge-project.json dbConnections."
+                "description": "Arbitrary display name for this profile. Used to match the tree-view node when opening a records grid."
+              },
+              "connectParts": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Ordered list of dbConnections names (from openedge-project.json) whose connect strings are concatenated to form the full connect arguments. The schema holder must appear first. The named entries are also absorbed into this profile's node in the schema view."
+              },
+              "extraArgs": {
+                "type": "string",
+                "description": "Additional raw connect flags appended after the expanded connectParts, e.g. '-U sa -P Default1 -Dsrv SKIP_SCHEMA_CHECK'. Only used when connectParts is set."
               },
               "pf": {
                 "type": "string",
-                "description": "Absolute path to a .pf parameter file. Passed to _progres as -pf <path>."
+                "description": "Absolute path to a .pf parameter file. Passed to _progres as -pf <path>. Takes precedence over connectParts and connectString."
               },
               "connectString": {
                 "type": "string",
-                "description": "Raw connect string flags, e.g. '-db mydb -H localhost -S 3000'. Used when 'pf' is not set."
+                "description": "Raw connect string flags, e.g. '-db mydb -H localhost -S 3000'. Used when neither pf nor connectParts is set."
               }
             }
           }

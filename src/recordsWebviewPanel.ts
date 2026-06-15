@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { spawn } from 'child_process';
+import { DbConnectionProfile } from './schemaManager';
 
 interface FetchParams {
     tableName: string;
@@ -176,6 +177,10 @@ export class RecordsWebviewPanel {
             );
         }
 
+        // Relative -db paths in openedge-project.json are relative to the directory
+        // that contains the project file, not necessarily the VS Code workspace root.
+        const projectDir = path.dirname(projectFile);
+
         const project     = JSON.parse(fs.readFileSync(projectFile, 'utf8'));
         const connections = project.dbConnections as { connect?: string; name?: string }[] | undefined;
 
@@ -186,17 +191,44 @@ export class RecordsWebviewPanel {
             );
         }
 
-        // Check for a user-configured override for this database.
-        const overrides = vscode.workspace
+        // Check for a user-configured profile for this database.
+        const profiles = vscode.workspace
             .getConfiguration('openedge-db-schema', workspaceFolder?.uri)
-            .get<{ database: string; pf?: string; connectString?: string }[]>('records.dbConnectionOverrides', []);
-        const override = overrides.find(o => o.database === this._databaseName);
+            .get<DbConnectionProfile[]>('records.dbConnectionProfiles', []);
+        const profile = profiles.find(p => p.database === this._databaseName);
 
         let connectArgs: string[];
-        if (override?.pf) {
-            connectArgs = ['-pf', override.pf];
-        } else if (override?.connectString) {
-            connectArgs = override.connectString.trim().split(/\s+/);
+        if (profile?.pf) {
+            connectArgs = ['-pf', profile.pf];
+        } else if (profile?.connectParts?.length) {
+            // Expand each named part from dbConnections, then append extraArgs.
+            connectArgs = [];
+            for (const partName of profile.connectParts) {
+                const conn = connections.find(c => c.name === partName);
+                if (!conn) {
+                    throw new Error(
+                        `dbConnectionProfiles: "${partName}" in connectParts of profile "${this._databaseName}" ` +
+                        `does not match any dbConnections entry in openedge-project.json.`,
+                    );
+                }
+                if (!conn.connect) {
+                    throw new Error(
+                        `dbConnectionProfiles: dbConnections entry "${partName}" has no connect string.`,
+                    );
+                }
+                const tokens = conn.connect.trim().split(/\s+/);
+                const resolved = tokens.map((tok, i) =>
+                    i > 0 && tokens[i - 1] === '-db' && !path.isAbsolute(tok) && _looksLikeFilePath(tok)
+                        ? path.resolve(projectDir, tok)
+                        : tok
+                );
+                connectArgs.push(...resolved);
+            }
+            if (profile.extraArgs?.trim()) {
+                connectArgs.push(...profile.extraArgs.trim().split(/\s+/));
+            }
+        } else if (profile?.connectString) {
+            connectArgs = profile.connectString.trim().split(/\s+/);
         } else {
             // Pick the connection that matches the requested database name, or the first one.
             const conn = connections.find(c => c.name === this._databaseName) ?? connections[0];
@@ -207,8 +239,8 @@ export class RecordsWebviewPanel {
             // Split the full connect string into args, resolving relative -db paths.
             const tokens = conn.connect.trim().split(/\s+/);
             connectArgs = tokens.map((tok, i) =>
-                i > 0 && tokens[i - 1] === '-db' && !path.isAbsolute(tok)
-                    ? path.resolve(workspaceRoot, tok)
+                i > 0 && tokens[i - 1] === '-db' && !path.isAbsolute(tok) && _looksLikeFilePath(tok)
+                    ? path.resolve(projectDir, tok)
                     : tok
             );
         }
@@ -259,6 +291,18 @@ export class RecordsWebviewPanel {
         RecordsWebviewPanel._panels.delete(key);
         this._disposables.forEach((d) => d.dispose());
     }
+}
+
+/**
+ * Returns true when a -db token looks like a file path rather than a logical
+ * database name.  A logical name (e.g. "mwdb") must be left untouched so that
+ * Progress can pass it as-is to the DataServer broker; resolving it against the
+ * filesystem produces an invalid path that the ODBC driver rejects.
+ *
+ * Heuristics: the token contains a path separator, OR ends with ".db".
+ */
+function _looksLikeFilePath(tok: string): boolean {
+    return tok.includes('/') || tok.includes('\\') || tok.toLowerCase().endsWith('.db');
 }
 
 function getNonce(): string {
