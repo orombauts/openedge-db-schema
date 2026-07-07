@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.1] - 2026-07-07
+
+### Fixed
+- Schema tree: index segments are now displayed correctly, in sync with recently resolved issue in the OpenEdge ABL LSP API call that returns the schema information.
+
 ## [1.4.0] - 2026-06-15
 
 ### Added
