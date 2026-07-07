@@ -739,7 +739,7 @@
             }
 
             if (filteredIndexes.length > 0) {
-                const indexesContainer = createContainer('Indexes', filteredIndexes, createIndexNode);
+                const indexesContainer = createContainer('Indexes', filteredIndexes, (index) => createIndexNode(index, table.fields));
                 childrenDiv.appendChild(indexesContainer);
             }
 
@@ -838,7 +838,7 @@
             return div;
         }
 
-        function createIndexNode(index) {
+        function createIndexNode(index, tableFields) {
             const div = document.createElement('div');
             div.className = 'tree-item';
 
@@ -859,8 +859,9 @@
                 const childrenDiv = document.createElement('div');
                 childrenDiv.className = 'children hidden';
 
-                index.fields.forEach((fieldName, idx) => {
-                    childrenDiv.appendChild(createIndexFieldNode(fieldName, idx + 1));
+                index.fields.forEach((fieldRef, idx) => {
+                    const fieldDef = (tableFields || []).find(f => f.name.toLowerCase() === String(fieldRef.name).toLowerCase());
+                    childrenDiv.appendChild(createIndexFieldNode(fieldRef, fieldDef, idx + 1));
                 });
 
                 div.appendChild(childrenDiv);
@@ -873,19 +874,54 @@
             return div;
         }
 
-        function createIndexFieldNode(fieldName, position) {
+        function createIndexFieldNode(fieldRef, fieldDef, position) {
             const div = document.createElement('div');
             div.className = 'tree-item';
 
+            let description = '';
+            if (fieldDef && fieldDef.dataType) {
+                description = fieldDef.dataType;
+                if (fieldDef.extent && fieldDef.extent > 0) {
+                    description += ` [${fieldDef.extent}]`;
+                }
+            }
+            const hasDetails = fieldDef && (fieldDef.format || fieldDef.label || fieldDef.columnLabel || fieldDef.initial !== undefined);
+
             const content = document.createElement('div');
             content.className = 'tree-item-content';
+            content.title = `Position ${position}`;
             content.innerHTML = `
-                <span class="expand-icon"></span>
-                <span class="label">${escapeHtml(fieldName)}</span>
-                <span class="description">Position ${position}</span>
+                <span class="expand-icon codicon ${hasDetails ? 'codicon-chevron-right' : ''}"></span>
+                <span class="label">${highlightText(fieldRef.name)}</span>
+                <span class="description">${description ? escapeHtml(description): ''}</span>
             `;
 
             div.appendChild(content);
+
+            if (hasDetails) {
+                const childrenDiv = document.createElement('div');
+                childrenDiv.className = 'children hidden';
+                
+                if (fieldDef.label) {
+                    childrenDiv.appendChild(createDetailNode('Label', fieldDef.label));
+                }
+                if (fieldDef.columnLabel) {
+                    childrenDiv.appendChild(createDetailNode('Column Label', fieldDef.columnLabel));
+                }
+                if (fieldDef.format) {
+                    childrenDiv.appendChild(createDetailNode('Format', fieldDef.format));
+                }
+                if (fieldDef.initial !== undefined && fieldDef.initial !== null) {
+                    childrenDiv.appendChild(createDetailNode('Initial', fieldDef.initial));
+                }
+
+                div.appendChild(childrenDiv);
+
+                content.addEventListener('click', (e) => {
+                    toggleNode(e, childrenDiv, content.querySelector('.expand-icon'));
+                });
+            }
+
             return div;
         }
 
