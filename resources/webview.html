@@ -859,8 +859,8 @@
                 const childrenDiv = document.createElement('div');
                 childrenDiv.className = 'children hidden';
 
-                index.fields.forEach((fieldName, idx) => {
-                    childrenDiv.appendChild(createIndexFieldNode(fieldName, idx + 1));
+                index.fields.forEach((field, idx) => {
+                    childrenDiv.appendChild(createIndexFieldNode(field, idx + 1));
                 });
 
                 div.appendChild(childrenDiv);
@@ -873,16 +873,52 @@
             return div;
         }
 
-        function createIndexFieldNode(fieldName, position) {
+        // The ABL LSP started returning index segments as objects instead of
+        // plain field-name strings.  Accept either shape and pull the display
+        // name from any of the property names that have been observed.
+        function extractIndexFieldName(field) {
+            if (field === null || field === undefined) {
+                return '';
+            }
+            if (typeof field === 'string') {
+                return field;
+            }
+            if (typeof field === 'object') {
+                return field.name || field.field || field.fieldName || '';
+            }
+            return String(field);
+        }
+
+        function extractIndexFieldDirection(field) {
+            if (field && typeof field === 'object') {
+                if (field.descending === true || field.ascending === false) {
+                    return 'DESC';
+                }
+                if (field.ascending === true || field.descending === false) {
+                    return 'ASC';
+                }
+            }
+            return '';
+        }
+
+        function createIndexFieldNode(field, position) {
             const div = document.createElement('div');
             div.className = 'tree-item';
+
+            const fieldName = extractIndexFieldName(field);
+            const direction = extractIndexFieldDirection(field);
+            const abbreviated = field && typeof field === 'object' && field.abbreviated === true;
+
+            const parts = [`Position ${position}`];
+            if (direction) { parts.push(direction); }
+            if (abbreviated) { parts.push('abbreviated'); }
 
             const content = document.createElement('div');
             content.className = 'tree-item-content';
             content.innerHTML = `
                 <span class="expand-icon"></span>
                 <span class="label">${escapeHtml(fieldName)}</span>
-                <span class="description">Position ${position}</span>
+                <span class="description">${parts.join(' · ')}</span>
             `;
 
             div.appendChild(content);

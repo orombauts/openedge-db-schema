@@ -25,11 +25,25 @@ interface Field {
     initial?: string;
 }
 
+interface IndexSegment {
+    // The ABL LSP now returns index segments as objects. Different LSP
+    // versions have used slightly different property names, so accept any of
+    // these to identify the field.
+    name?: string;
+    field?: string;
+    fieldName?: string;
+    ascending?: boolean;
+    descending?: boolean;
+    abbreviated?: boolean;
+}
+
 interface Index {
     name: string;
     primary: boolean;
     unique: boolean;
-    fields: string[];
+    // Older LSP versions returned plain strings; newer versions return
+    // IndexSegment objects.
+    fields: (string | IndexSegment)[];
 }
 
 export interface DbConnectionProfile {
