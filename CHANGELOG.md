@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.0] - 2026-07-13
+
+### Added
+- Schema tree: index segments can be expanded to reveal the underlying field's details (data type, extent, label, column label, format, initial value). Enabled by the new setting `openedge-db-schema.showFieldInfoOnIndexSegments` (default `false`)
+
+### Changed
+- Records grid: the **Clear** toolbar button no longer re-fetches records. It now empties the WHERE input and clears the grid state (rows, selection, pagination, status), and remains enabled at all times.
+
+### Fixed
+- Records grid: sticky column header no longer lets scrolled rows bleed through.
+
 ## [1.4.1] - 2026-07-07
 
 ### Fixed

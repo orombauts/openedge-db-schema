@@ -179,19 +179,29 @@
 
         /* ── Data table ──────────────────────────────────────── */
         table {
-            border-collapse: collapse;
+            /* Use `separate` (not `collapse`) so that position: sticky on
+               <th> works reliably in Chromium — with collapsed borders the
+               table owns the borders and sticky cells bleed. */
+            border-collapse: separate;
+            border-spacing: 0;
             width: max-content;
             min-width: 100%;
         }
 
         thead {
-            position: sticky;
-            top: 0;
-            z-index: 5;
+            /* Note: position: sticky on <thead> is unreliable across Chromium
+               versions; stickiness is applied to <th> cells instead. Also
+               paint an opaque background here so nothing bleeds through if
+               a cell background variable resolves transparent. */
+            background: var(--vscode-editor-background);
         }
 
         th {
-            background: var(--vscode-sideBarSectionHeader-background, var(--vscode-editor-background));
+            /* Use --vscode-editor-background as the primary value: the
+               sideBarSectionHeader-background variable is transparent in
+               many themes, which would let scrolled rows bleed through the
+               sticky header. */
+            background: var(--vscode-editor-background);
             color: var(--vscode-sideBarTitle-foreground, var(--vscode-foreground));
             font-weight: 600;
             text-align: left;
@@ -200,6 +210,10 @@
             border-bottom: 2px solid var(--vscode-panel-border);
             border-right: 1px solid var(--vscode-panel-border);
             user-select: none;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            background-clip: padding-box;
         }
 
         th .col-type {
@@ -353,9 +367,24 @@
         });
 
         clearBtn.addEventListener('click', () => {
-            whereInput.value  = '';
-            currentOffset     = 0;
-            fetchRecords();
+            whereInput.value = '';
+            whereInput.focus();
+
+            // Empty the grid state and reset pagination / selection.
+            currentColumns = [];
+            currentRows    = [];
+            currentOffset  = 0;
+            lastFetched    = 0;
+            lastHasMore    = false;
+            selectedIndices.clear();
+            lastCheckedIdx = null;
+            updateSelectionUi();
+
+            clearGrid();
+            showMessage('Grid cleared.');
+            setStatus('');
+            pageInfo.textContent = '';
+            updatePagination(false, false);
         });
 
         prevBtn.addEventListener('click', () => {
@@ -542,13 +571,11 @@
             clearGrid();
             loadingOverlay.classList.remove('hidden');
             applyBtn.disabled = true;
-            clearBtn.disabled = true;
         }
 
         function hideLoading() {
             loadingOverlay.classList.add('hidden');
             applyBtn.disabled = false;
-            clearBtn.disabled = false;
         }
 
         function showMessage(text) {
