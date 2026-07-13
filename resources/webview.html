@@ -264,6 +264,7 @@
         let contextMenu = null;
         let contextMenuTarget = null;
         let mouseDownPos = { x: 0, y: 0 };
+        let showFieldInfoOnIndexSegments = false;
 
         // Restore state if available
         const previousState = vscode.getState();
@@ -294,6 +295,12 @@
                         });
                     }
                     renderTree();
+                    break;
+                case 'settings':
+                    if (message.settings) {
+                        showFieldInfoOnIndexSegments = !!message.settings.showFieldInfoOnIndexSegments;
+                        if (schemaData) { renderTree(); }
+                    }
                     break;
             }
         });
@@ -739,7 +746,7 @@
             }
 
             if (filteredIndexes.length > 0) {
-                const indexesContainer = createContainer('Indexes', filteredIndexes, createIndexNode);
+                const indexesContainer = createContainer('Indexes', filteredIndexes, (idx) => createIndexNode(idx, table));
                 childrenDiv.appendChild(indexesContainer);
             }
 
@@ -838,7 +845,7 @@
             return div;
         }
 
-        function createIndexNode(index) {
+        function createIndexNode(index, table) {
             const div = document.createElement('div');
             div.className = 'tree-item';
 
@@ -860,7 +867,7 @@
                 childrenDiv.className = 'children hidden';
 
                 index.fields.forEach((field, idx) => {
-                    childrenDiv.appendChild(createIndexFieldNode(field, idx + 1));
+                    childrenDiv.appendChild(createIndexFieldNode(field, idx + 1, table));
                 });
 
                 div.appendChild(childrenDiv);
@@ -901,7 +908,7 @@
             return '';
         }
 
-        function createIndexFieldNode(field, position) {
+        function createIndexFieldNode(field, position, table) {
             const div = document.createElement('div');
             div.className = 'tree-item';
 
@@ -913,15 +920,54 @@
             if (direction) { parts.push(direction); }
             if (abbreviated) { parts.push('abbreviated'); }
 
+            // When the setting is enabled, look up the underlying field on the
+            // parent table so we can expose its details as expandable children.
+            const underlyingField = (showFieldInfoOnIndexSegments && table && fieldName)
+                ? table.fields.find(f => f && f.name === fieldName)
+                : null;
+            const hasDetails = !!underlyingField;
+
             const content = document.createElement('div');
             content.className = 'tree-item-content';
             content.innerHTML = `
-                <span class="expand-icon"></span>
+                <span class="expand-icon ${hasDetails ? 'codicon codicon-chevron-right' : ''}"></span>
                 <span class="label">${escapeHtml(fieldName)}</span>
                 <span class="description">${parts.join(' · ')}</span>
             `;
 
             div.appendChild(content);
+
+            if (hasDetails) {
+                const childrenDiv = document.createElement('div');
+                childrenDiv.className = 'children hidden';
+
+                let dataTypeText = underlyingField.dataType || '';
+                if (underlyingField.extent && underlyingField.extent > 0) {
+                    dataTypeText += ` [${underlyingField.extent}]`;
+                }
+                if (dataTypeText) {
+                    childrenDiv.appendChild(createDetailNode('Data Type', dataTypeText));
+                }
+                if (underlyingField.label) {
+                    childrenDiv.appendChild(createDetailNode('Label', underlyingField.label));
+                }
+                if (underlyingField.columnLabel) {
+                    childrenDiv.appendChild(createDetailNode('Column Label', underlyingField.columnLabel));
+                }
+                if (underlyingField.format) {
+                    childrenDiv.appendChild(createDetailNode('Format', underlyingField.format));
+                }
+                if (underlyingField.initial !== undefined && underlyingField.initial !== null) {
+                    childrenDiv.appendChild(createDetailNode('Initial', underlyingField.initial));
+                }
+
+                div.appendChild(childrenDiv);
+
+                content.addEventListener('click', (e) => {
+                    toggleNode(e, childrenDiv, content.querySelector('.expand-icon'));
+                });
+            }
+
             return div;
         }
 

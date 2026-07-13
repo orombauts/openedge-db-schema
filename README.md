@@ -42,6 +42,7 @@ The **OpenEdge DB Schema** view appears in the Explorer sidebar and shows:
   - Expand fields to see additional details: label, column label, format, initial value
 - **Indexes**: Index definitions with primary/unique indicators
   - Expand indexes to see segment fields and their positions
+  - Optionally, expand each index segment to see the underlying field's details (data type, extent, label, column label, format, initial value) — enable via [`openedge-db-schema.showFieldInfoOnIndexSegments`](#settings-reference)
 
 ### Search Features
 
@@ -140,6 +141,7 @@ When the setting is empty (default), values are displayed as-is.
 | Setting | Default | Description |
 |---|---|---|
 | `openedge-db-schema.autoLoadSchema` | `true` | Automatically load the database schema when the OpenEdge DB Schema view becomes active. Disable if you prefer to load the schema manually via the Refresh button. |
+| `openedge-db-schema.showFieldInfoOnIndexSegments` | `false` | When enabled, index segments become expandable in the schema tree and reveal the underlying field's details (data type, extent, label, column label, format, initial). |
 | `openedge-db-schema.records.converterProcedure` | _(empty)_ | Path to an optional ABL converter procedure. See [Custom Column Converter](#custom-column-converter). |
 | `openedge-db-schema.records.dbConnectionProfiles` | `[]` | Named connection profiles for record fetching and schema tree collapsing. See [Database Connection Profiles](#database-connection-profiles). |
 

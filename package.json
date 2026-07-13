@@ -65,6 +65,11 @@
           "default": true,
           "description": "Automatically load the database schema when the OpenEdge DB Schema view becomes active."
         },
+        "openedge-db-schema.showFieldInfoOnIndexSegments": {
+          "type": "boolean",
+          "default": false,
+          "description": "When enabled, index segments become expandable in the schema tree and reveal the underlying field's details (data type, extent, label, column label, format, initial)."
+        },
         "openedge-db-schema.records.converterProcedure": {
           "type": "string",
           "default": "",

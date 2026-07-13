@@ -19,6 +19,20 @@ export class SchemaWebviewProvider implements vscode.WebviewViewProvider {
                 this._view.webview.postMessage({ type: 'schemaData', data });
             }
         });
+
+        // Re-push settings to the webview when the relevant config changes
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('openedge-db-schema.showFieldInfoOnIndexSegments') && this._view) {
+                this._view.webview.postMessage({ type: 'settings', settings: this._getSettings() });
+            }
+        });
+    }
+
+    private _getSettings(): { showFieldInfoOnIndexSegments: boolean } {
+        const cfg = vscode.workspace.getConfiguration('openedge-db-schema');
+        return {
+            showFieldInfoOnIndexSegments: cfg.get<boolean>('showFieldInfoOnIndexSegments', false),
+        };
     }
 
     public resolveWebviewView(
@@ -38,6 +52,7 @@ export class SchemaWebviewProvider implements vscode.WebviewViewProvider {
         webviewView.webview.onDidReceiveMessage(data => {
             switch (data.type) {
                 case 'ready':
+                    webviewView.webview.postMessage({ type: 'settings', settings: this._getSettings() });
                     const schemaData = this._schemaManager.getSchema();
                     if (schemaData) {
                         webviewView.webview.postMessage({ type: 'schemaData', data: schemaData });
@@ -70,6 +85,7 @@ export class SchemaWebviewProvider implements vscode.WebviewViewProvider {
         if (schemaData) {
             // Delay to ensure webview is fully initialized
             setTimeout(() => {
+                webviewView.webview.postMessage({ type: 'settings', settings: this._getSettings() });
                 webviewView.webview.postMessage({ type: 'schemaData', data: schemaData });
             }, 100);
         } else if (this._autoLoad && this._isAutoLoadEnabled()) {
